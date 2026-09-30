@@ -1,0 +1,19 @@
+{
+  // Local-only config: no `ai` binding, so `npm run dev` never calls a Cloudflare account.
+  // Mock rTokens are enabled here ONLY because this machine cannot resolve Bitget's API host;
+  // the UI labels mock data loudly and production (wrangler.jsonc) never sets it.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "disclosure-desk-dev",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-30",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "kv_namespaces": [{ "binding": "SNAPS" }],
+  "vars": {
+    "LLM_MODEL": "@cf/qwen/qwen3-30b-a3b-fp8",
+    "MOCK_RTOKENS": "1"
+  }
+}

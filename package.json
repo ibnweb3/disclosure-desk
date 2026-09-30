@@ -1,0 +1,25 @@
+{
+  "name": "disclosure-desk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Disclosure Desk - a 24/7 research desk for US Congress trade disclosures, tied to Bitget rTokens (Bitget AI Hackathon S2, AI Trading Desk track)",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --config wrangler.dev.jsonc --test-scheduled",
+    "deploy": "wrangler deploy",
+    "types": "wrangler types",
+    "typecheck": "tsc --noEmit",
+    "data": "python pipeline/build.py",
+    "proof": "python pipeline/analysis.py",
+    "test": "node test/study.test.mjs && node test/grounding.test.mjs && python pipeline/test_pipeline.py"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "wrangler": "^4.144.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "workerd@1.20260926.1": true
+  }
+}

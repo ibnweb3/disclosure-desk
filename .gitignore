@@ -1,0 +1,12 @@
+node_modules/
+.wrangler/
+.dev.vars
+pipeline/cache/
+__pycache__/
+*.pyc
+.DS_Store
+.claude/
+# local drafts: submission text with unfilled placeholders, X posts, demo script
+docs/SUBMISSION.md
+docs/X_POSTS.md
+docs/DEMO_SCRIPT.md

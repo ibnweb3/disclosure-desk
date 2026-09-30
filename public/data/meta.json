@@ -1,0 +1,37 @@
+{
+ "generatedAt": "2026-09-30T14:55:09+00:00",
+ "priceAsOf": "2026-09-30",
+ "feedDays": 90,
+ "count": 1426,
+ "verdicts": {
+  "OPEN": 956,
+  "REVERSED": 220,
+  "PRICED_IN": 223,
+  "UNCLEAR": 27
+ },
+ "coverage": {
+  "senate": {
+   "reports": 544,
+   "paperReports": 59,
+   "tradesSeen": 4776,
+   "tradesKept": 3146,
+   "updated": "2026-09-29T22:12:42+00:00"
+  },
+  "house": {
+   "filings": 403,
+   "scanned": 47,
+   "missing": 0,
+   "markers": 3396,
+   "parsed": 3386,
+   "kept": 2835
+  },
+  "houseParsePct": 99.7
+ },
+ "sources": [
+  "disclosures-clerk.house.gov (official, PDF)",
+  "efdsearch.senate.gov via public GitHub mirror",
+  "Yahoo Finance chart API (prices)",
+  "SEC EDGAR (industry codes)",
+  "unitedstates/congress-legislators (members, committees)"
+ ]
+}

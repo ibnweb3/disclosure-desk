@@ -1,0 +1,57 @@
+name: refresh-data
+
+# Rebuilds public/data (feed, charts, proof) from the official filings every 6 hours and commits it.
+# efdsearch.senate.gov blocks datacenter IPs, so Senate rows come from a public GitHub Actions mirror;
+# House rows are parsed straight from the Clerk's PDFs.
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-data
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pipeline/requirements.txt
+      - run: pip install -r pipeline/requirements.txt
+      - name: Restore price/PDF cache
+        uses: actions/cache@v4
+        with:
+          path: pipeline/cache
+          key: pipeline-cache-${{ github.run_id }}
+          restore-keys: pipeline-cache-
+      - name: Unit tests
+        run: python pipeline/test_pipeline.py
+      - name: Fetch House PDFs (incremental)
+        run: python pipeline/house_fetch.py "$(date -u +%Y)"
+      - name: Build feed + proof
+        run: python pipeline/analysis.py
+      - name: Commit data
+        run: |
+          git config user.name "disclosure-desk-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add public/data
+          git diff --cached --quiet || git commit -m "data: refresh $(date -u '+%Y-%m-%d %H:%M') UTC"
+          git push
+      - name: Deploy (only when a Cloudflare token secret is configured)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        run: |
+          npm ci
+          npx wrangler deploy
