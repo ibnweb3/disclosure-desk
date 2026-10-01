@@ -109,7 +109,7 @@ def main(skip_house_fetch=True):
         "coverage": {"senate": s_stats, "house": h_stats,
                      "houseParsePct": round(100 * h_stats["parsed"] / max(1, h_stats["markers"]), 1)},
         "sources": ["disclosures-clerk.house.gov (official, PDF)", "efdsearch.senate.gov via public GitHub mirror",
-                    "Yahoo Finance chart API (prices)", "SEC EDGAR (industry codes)",
+                    "Yahoo Finance chart API (prices)", "Yahoo Finance search API (sector, industry)",
                     "unitedstates/congress-legislators (members, committees)"],
     }
     (DATA_OUT / "meta.json").write_text(json.dumps(meta, indent=1), encoding="utf-8")
