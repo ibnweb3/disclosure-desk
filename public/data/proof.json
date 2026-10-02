@@ -12,13 +12,13 @@
    "tClustered": 0.71
   },
   "20d": {
-   "n": 5185,
-   "clusters": 540,
+   "n": 5194,
+   "clusters": 544,
    "meanPct": 0.21,
    "medianPct": -0.06,
    "hitRatePct": 49.6,
    "tNaive": 1.38,
-   "tClustered": 1.99
+   "tClustered": 2.02
   }
  },
  "byVerdict": {
@@ -52,6 +52,15 @@
    }
   },
   "20d": {
+   "OPEN": {
+    "n": 3456,
+    "clusters": 484,
+    "meanPct": 0.26,
+    "medianPct": 0.01,
+    "hitRatePct": 50.3,
+    "tNaive": 1.4,
+    "tClustered": 0.77
+   },
    "REVERSED": {
     "n": 844,
     "clusters": 241,
@@ -69,15 +78,6 @@
     "hitRatePct": 48.8,
     "tNaive": 0.95,
     "tClustered": 1.25
-   },
-   "OPEN": {
-    "n": 3447,
-    "clusters": 480,
-    "meanPct": 0.26,
-    "medianPct": 0.02,
-    "hitRatePct": 50.3,
-    "tNaive": 1.4,
-    "tClustered": 0.74
    }
   }
  },
@@ -87,8 +87,8 @@
    "tWelch": 0.53
   },
   "20d": {
-   "diffPct": -0.41,
-   "tWelch": -0.64
+   "diffPct": -0.4,
+   "tWelch": -0.63
   }
  },
  "caveats": [
