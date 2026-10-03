@@ -3,21 +3,21 @@
  "method": "Validation numbers for the 'Proof' page. Two questions, answered on all history we hold\n(Senate 2023-26 via mirror + House 2026), and reported whatever the answer is:\n\n  1. Does naively following a disclosure make money?          (the tracker-app premise)\n  2. Does the desk's verdict (OPEN vs PRICED_IN) separate outcomes?   (the desk's premise)\n\nMethod: assess each trade as a follower would see it - on the first close AFTER the filing date, so there\nis no look-ahead - then measure direction-adjusted excess return over SPY for the next 5 / 20 trading days.\nObservations are clustered by filing (one filing = one observation) because a member's trades inside one\nfiling are not independent; the naive per-trade t-stat is shown next to it to make the inflation visible.",
  "naiveFollow": {
   "5d": {
-   "n": 5466,
+   "n": 5465,
    "clusters": 564,
    "meanPct": 0.22,
    "medianPct": 0.06,
    "hitRatePct": 50.7,
-   "tNaive": 2.97,
-   "tClustered": 0.71
+   "tNaive": 2.96,
+   "tClustered": 0.7
   },
   "20d": {
-   "n": 5194,
+   "n": 5193,
    "clusters": 544,
    "meanPct": 0.21,
-   "medianPct": -0.06,
+   "medianPct": -0.07,
    "hitRatePct": 49.6,
-   "tNaive": 1.38,
+   "tNaive": 1.37,
    "tClustered": 2.02
   }
  },
@@ -33,12 +33,12 @@
     "tClustered": 0.09
    },
    "OPEN": {
-    "n": 3676,
+    "n": 3675,
     "clusters": 502,
     "meanPct": 0.24,
-    "medianPct": 0.08,
+    "medianPct": 0.07,
     "hitRatePct": 50.9,
-    "tNaive": 2.76,
+    "tNaive": 2.75,
     "tClustered": 0.3
    },
    "PRICED_IN": {
@@ -53,12 +53,12 @@
   },
   "20d": {
    "OPEN": {
-    "n": 3456,
+    "n": 3455,
     "clusters": 484,
     "meanPct": 0.26,
     "medianPct": 0.01,
-    "hitRatePct": 50.3,
-    "tNaive": 1.4,
+    "hitRatePct": 50.2,
+    "tNaive": 1.39,
     "tClustered": 0.77
    },
    "REVERSED": {
