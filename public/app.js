@@ -55,6 +55,7 @@ async function boot() {
   renderFeed();
   await refreshMarket();
   renderBanner();
+  renderFeed(true); // the first paint ran before the rToken list arrived; redraw so "on Bitget" chips and the filter work even if live quotes fail
   await refreshGapWatch();
   setInterval(() => { if (!document.hidden) tick(); }, 30000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
