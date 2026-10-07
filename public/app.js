@@ -11,24 +11,35 @@ const store = {
 const pct = (x, d = 1) => (x == null || Number.isNaN(x) ? "n/a" : `${x >= 0 ? "+" : "−"}${Math.abs(x * 100).toFixed(d)}%`);
 const cls = (x) => (x == null ? "" : x >= 0 ? "up" : "down");
 const usdK = (n) => (n == null ? "?" : n >= 1e6 ? `$${+(n / 1e6).toFixed(1)}M` : `$${Math.round(n / 1000)}K`);
-const amount = (d) => (d.amountLo == null && d.amountHi == null ? "amount n/a" : `${usdK(d.amountLo)}–${usdK(d.amountHi)}`);
+const amount = (d) => (d.amountLo == null && d.amountHi == null ? "amount not stated" : `${usdK(d.amountLo)}–${usdK(d.amountHi)}`);
 const dShort = (iso) => (iso ? new Date(iso + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }) : "?");
 const px = (n) => (n == null ? "n/a" : n >= 10 ? n.toFixed(2) : n.toFixed(4));
-const VERDICT = { OPEN: "Open", PRICED_IN: "Priced in", REVERSED: "Reversed", UNCLEAR: "Unclear", INVALID: "Bad date" };
+const median = (a) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y), h = s.length >> 1; return s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2; };
 const inDur = (ms) => {
   if (ms <= 0) return "now";
   const m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = m % 60;
   return d ? `${d}d ${h}h` : h ? `${h}h ${mm}m` : `${mm}m`;
 };
 
+// The same three outcomes everywhere, in plain words. Keys are the pipeline's internal names.
+const VERDICT = { OPEN: "Still early", PRICED_IN: "Too late", REVERSED: "Went the other way", UNCLEAR: "Can't tell", INVALID: "Date error" };
+const VERDICT_HELP = {
+  "": "Each trade is labelled by what the stock has done since: still early, too late, or gone the other way.",
+  OPEN: "Still early: the stock hasn't clearly moved past the member's entry, so following now wouldn't obviously be late.",
+  PRICED_IN: "Too late: the stock had already moved their way, so following now means paying for a move they already got.",
+  REVERSED: "Went the other way: the stock moved against the member after the trade.",
+};
+/** "moved 4.0% their way" / "moved 5.3% against them" (against the overall market, in the member's direction). */
+const moveText = (a) => (a.rTotal == null ? "" : `moved ${Math.abs(a.rTotal * 100).toFixed(1)}% ${a.rTotal >= 0 ? "their way" : "against them"}`);
+const plainVerdicts = (s) => s.replace(/\bPRICED[ _]IN\b/g, "Too late").replace(/\bREVERSED\b/g, "Went the other way").replace(/\bUNCLEAR\b/g, "Can't tell").replace(/\bOPEN\b/g, "Still early");
+
 // ---------- state ----------
 const S = {
   data: [], byId: new Map(), meta: null, proof: null,
   rt: { ok: false, set: new Set(), mock: false },
   market: null, quotes: {},
-  f: { win: "recent", chamber: "", side: "", verdict: "", rtoken: false, cluster: false, overlap: false, mine: false, q: "" },
+  f: { win: "recent", verdict: "", rtoken: false },
   idFilter: null, sel: null, opener: null,
-  watch: store.get("dd.watch", []),
   pxCache: new Map(),
   qTried: new Set(), // tickers whose rToken quote was already requested for the open panel (stops re-fetch loops when the feed is down)
   tk: { budget: 100, slip: 15, side: null },
@@ -43,28 +54,24 @@ async function getJSON(url, opts) {
 
 async function boot() {
   wireStatic();
-  renderWatchlist();
   try {
     const [data, meta] = await Promise.all([getJSON("/data/disclosures.json"), getJSON("/data/meta.json")]);
     S.data = data; S.meta = meta; S.byId = new Map(data.map((d) => [d.id, d]));
   } catch {
-    $("#feed").innerHTML = `<li class="empty">Could not load the dataset. Reload, or check that <code>/data/disclosures.json</code> exists.</li>`;
+    $("#feed").innerHTML = `<li class="empty">Could not load the data. Reload the page.</li>`;
     return;
   }
   renderExamples();
   renderFeed();
   await refreshMarket();
-  renderBanner();
-  renderFeed(true); // the first paint ran before the rToken list arrived; redraw so "on Bitget" chips and the filter work even if live quotes fail
+  renderFeed(true); // the first paint ran before the rToken list arrived; redraw so "Bitget 24/7" tags and the filter work even if live quotes fail
   await refreshGapWatch();
   setInterval(() => { if (!document.hidden) tick(); }, 30000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
-  setInterval(renderBanner, 60000);
 }
 
 async function tick() {
   await refreshMarket();
-  renderBanner();
   await refreshGapWatch();
   if (S.sel) { const d = S.byId.get(S.sel); if (d) { await ensureQuote(d.ticker, true); renderDetail(d, true); } }
 }
@@ -76,12 +83,11 @@ async function refreshMarket() {
     S.market = m;
     S.rt = { ok: rt.ok, set: new Set(rt.tickers || []), mock: !!rt.mock };
   } catch { /* keep last known state */ }
-  const c = $("#mkt-chip");
-  const m = S.market;
+  const c = $("#mkt-chip"), m = S.market;
   if (!m) { c.textContent = "Market status unavailable"; return; }
   const left = m.open ? "" : ` · reopens in ${inDur(new Date(m.nextOpen) - Date.now())}`;
   c.dataset.state = m.state;
-  c.innerHTML = `<span class="dot" aria-hidden="true"></span>${m.open ? "US market open" : m.state === "pre" ? "Pre-market" : m.state === "post" ? "After-hours" : "US market closed"}${esc(left)}`;
+  c.innerHTML = `<span class="dot" aria-hidden="true"></span>${m.open ? "US market open" : m.state === "pre" ? "Pre-market" : m.state === "post" ? "After hours" : "US market closed"}${esc(left)}`;
 }
 
 async function fetchQuotes(tickers) {
@@ -106,131 +112,67 @@ function gapCandidates() {
   return out;
 }
 
+const mid = (rt) => (rt ? rt.mid ?? rt.last : null); // bid/ask midpoint: `last` can lag the live book on a thin token
+const fresh = (q) => !!(q && q.rtoken && q.rtoken.mid != null); // a two-sided book is what "trading right now" means here
+
+/** The overnight movers strip only exists while Bitget prices are live; with the feed down the section stays hidden rather than apologising. */
 async function refreshGapWatch() {
-  const list = $("#gw-list"), sub = $("#gw-sub");
-  if (!S.rt.ok) {
-    sub.textContent = "";
-    list.innerHTML = `<li class="gw-empty">The Bitget rToken feed is unreachable right now, so live gaps can't be shown. Everything else on the desk still works.</li>`;
-    return;
-  }
+  const box = $("#gapwatch");
+  if (!S.rt.ok) { box.hidden = true; return; }
   const cand = gapCandidates();
-  if (!cand.length) { list.innerHTML = `<li class="gw-empty">No recent disclosures involve a listed rToken.</li>`; return; }
-  if (!list.children.length) list.innerHTML = `<li class="gw-empty"><span class="spin" aria-hidden="true"></span>Loading live quotes…</li>`;
+  if (!cand.length) { box.hidden = true; return; }
   await fetchQuotes(cand);
-  const items = cand.map((t) => S.quotes[t]).filter((q) => q && q.gap != null && fresh(q)).sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap)).slice(0, 12);
-  if (!items.length) {
-    sub.textContent = "";
-    list.innerHTML = `<li class="gw-empty">Bitget's live price feed is not responding right now, so no rToken prices are shown (the desk never shows stale ones). Disclosures and verdicts below still work, and the prices we recorded while the feed was up are on the <button class="link-btn" type="button" data-goto="proof">Proof tab</button>.</li>`;
-    return;
-  }
+  const items = cand.map((t) => S.quotes[t]).filter((q) => q && q.gap != null && fresh(q)).sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap)).slice(0, 6);
+  if (!items.length) { box.hidden = true; return; }
   const closed = S.market && !S.market.open;
-  sub.textContent = closed
-    ? "rTokens are tokenized US stocks that trade 24/7 on Bitget. These recently disclosed names have moved most since the US close."
-    : "rTokens are tokenized US stocks that trade 24/7 on Bitget. These recently disclosed names show the biggest gap to the live stock price.";
-  list.innerHTML = items.length ? items.slice(0, 8).map((q) => `
-    <li class="gw-item"><button class="gw-btn" data-tk="${esc(q.ticker)}" aria-label="${esc(q.ticker)}: rToken ${pct(q.gap, 2)} versus the last stock price. Open details.">
-      <span class="t">r${esc(q.ticker)}</span>
-      <span class="g ${cls(q.gap)}">${q.gap >= 0 ? "▲" : "▼"} ${pct(q.gap, 2)}</span>
-      <span class="s" title="Spread: the gap between the best buy and sell price, in basis points (1 bp = 0.01%)">${px(mid(q.rtoken))} · spread ${q.spreadBps == null ? "n/a" : Math.round(q.spreadBps) + " bps"}</span>
-    </button></li>`).join("") : `<li class="gw-empty">Loading live quotes…</li>`;
-  renderFeed(true);
+  $("#gw-sub").textContent = closed
+    ? "A Bitget rToken is a tokenized US stock that trades around the clock. These recently reported stocks have moved most since the US market closed."
+    : "A Bitget rToken is a tokenized US stock that trades around the clock. These recently reported stocks are furthest from their live stock price.";
+  $("#gw-list").innerHTML = items.map((q) => `
+    <li><button class="gw-btn" type="button" data-tk="${esc(q.ticker)}" aria-label="${esc(q.ticker)}: token ${pct(q.gap, 2)} versus the last stock price. Open details.">
+      <span class="t">r${esc(q.ticker)}</span><span class="g ${cls(q.gap)}">${q.gap >= 0 ? "▲" : "▼"} ${pct(q.gap, 2)}</span>
+    </button></li>`).join("");
+  box.hidden = false;
 }
 
-// ---------- banner ----------
-const median = (a) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y), h = s.length >> 1; return s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2; };
-
-function renderBanner() {
-  const m = S.market, b = $("#banner");
-  const mock = S.rt.mock ? `<span class="mock" title="Development data only; production reads Bitget's agent MCP">MOCK rToken data</span>` : "";
-  if (!m) { b.innerHTML = `<p class="strip-note">Checking market status…</p>`; return; }
-  const recent = S.data.filter((d) => !d.stale);
-  const names = [...new Set(recent.map((d) => d.ticker))];
-  const onBitget = S.rt.ok ? names.filter((t) => S.rt.set.has(t)).length : null;
-  const lag = median(recent.map((d) => d.lagDays));
-  let state, sub, note;
-  if (m.open) {
-    state = "Open"; sub = "rTokens track their stocks closely";
-    note = `<strong>US stocks are open.</strong> After the close, the list below switches to overnight mode: it ranks the disclosed names by how far their 24/7 rToken has already moved.`;
-  } else {
-    const next = new Date(m.nextOpen);
-    const when = next.toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
-    state = m.state === "pre" ? "Pre-market" : m.state === "post" ? "After hours" : "Closed";
-    sub = `Reopens ${esc(when)} ET · in ${inDur(next - Date.now())}`;
-    note = `<strong>US stocks are closed.</strong> Congress files whenever it likes, but the market only reprices at the open. rTokens trade all night, so the list below shows where recently disclosed names are already trading.`;
-  }
-  b.innerHTML = `<div class="kpis">
-      <div class="kpi" data-state="${esc(m.state)}"><span class="kpi-l">US stock market</span><span class="kpi-v"><span class="dot" aria-hidden="true"></span>${state}</span><span class="kpi-s">${sub}</span></div>
-      <div class="kpi"><span class="kpi-l">Recent disclosures</span><span class="kpi-v">${recent.length.toLocaleString()}</span><span class="kpi-s">trades from the last 60 days</span></div>
-      <div class="kpi"><span class="kpi-l">Tradable 24/7 on Bitget</span><span class="kpi-v">${onBitget == null ? "n/a" : onBitget}</span><span class="kpi-s">${onBitget == null ? "rToken feed unreachable" : `of ${names.length} recently disclosed stocks have an rToken`}</span></div>
-      <div class="kpi"><span class="kpi-l">Typical filing delay</span><span class="kpi-v">${lag == null ? "n/a" : `${Math.round(lag)} days`}</span><span class="kpi-s">median, from trade to public filing</span></div>
-    </div>
-    <p class="strip-note">${note}${mock}</p>`;
-}
-
-// ---------- filters + feed ----------
+// ---------- feed ----------
 function visible() {
-  const f = S.f, q = f.q.trim().toLowerCase(), mine = new Set(S.watch);
-  let rows = S.data;
-  if (S.idFilter) { const ids = new Set(S.idFilter.ids); rows = rows.filter((d) => ids.has(d.id)); return S.idFilter.ids.map((i) => S.byId.get(i)).filter(Boolean); }
-  return rows.filter((d) => {
+  const f = S.f;
+  if (S.idFilter) return S.idFilter.ids.map((i) => S.byId.get(i)).filter(Boolean);
+  return S.data.filter((d) => {
     if (f.win === "recent" && d.stale) return false;
-    if (f.chamber && d.chamber !== f.chamber) return false;
-    if (f.side && d.side !== f.side) return false;
     if (f.verdict && d.a.verdict !== f.verdict) return false;
     if (f.rtoken && !S.rt.set.has(d.ticker)) return false;
-    if (f.cluster && !d.flags.cluster) return false;
-    if (f.overlap && !d.flags.overlap.length) return false;
-    if (f.mine && !mine.has(d.ticker)) return false;
-    if (q && !(d.ticker.toLowerCase().includes(q) || d.member.toLowerCase().includes(q) || (d.company || "").toLowerCase().includes(q))) return false;
     return true;
   });
 }
 
 function rowHTML(d) {
-  const a = d.a, q = S.quotes[d.ticker], hasRt = S.rt.set.has(d.ticker);
-  const flags = [];
-  if (hasRt) flags.push(`<span class="fl rt" title="Tradable 24/7 on Bitget as r${esc(d.ticker)}">r${esc(d.ticker)} on Bitget${q && q.gap != null && fresh(q) ? " " + pct(q.gap, 1) : ""}</span>`);
-  if (d.flags.cluster) flags.push(`<span class="fl" title="${d.flags.cluster + 1} members traded ${esc(d.ticker)} the same way within 30 days">${d.flags.cluster + 1} members</span>`);
-  if (d.flags.overlap.length) flags.push(`<span class="fl" title="Member sits on: ${esc(d.flags.overlap.join("; "))}">Committee link</span>`);
-  if (d.flags.late) flags.push(`<span class="fl" title="Filed ${d.lagDays} days after the trade; the STOCK Act limit is 45">Filed late</span>`);
-  if (d.lots > 1) flags.push(`<span class="fl" title="One trade split across ${d.lots} lots or accounts; amounts are summed">${d.lots} lots</span>`);
-  if (d.owner && d.owner !== "self") flags.push(`<span class="fl" title="Held by: ${esc(d.owner)}">${esc(d.owner[0].toUpperCase() + d.owner.slice(1))}</span>`);
-  if (d.instrument === "option") flags.push(`<span class="fl" title="Option trade">option</span>`);
+  const a = d.a, hasRt = S.rt.set.has(d.ticker);
   const scored = a.rTotal != null && (a.verdict === "OPEN" || a.verdict === "PRICED_IN" || a.verdict === "REVERSED");
-  const num = scored ? `<span class="v-num"><b>${pct(a.rTotal)}</b> vs SPY</span>`
-    : a.verdict === "UNCLEAR" ? `<span class="v-num">call or put not stated</span>`
-    : a.verdict === "INVALID" ? `<span class="v-num">trade dated after filing</span>` : "";
+  const note = scored ? `Stock ${moveText(a)}` : a.verdict === "UNCLEAR" ? "option: call or put not stated" : a.verdict === "INVALID" ? "trade dated after the filing" : "";
   return `<li><button class="row" type="button" data-id="${esc(d.id)}" aria-selected="${S.sel === d.id}">
-    <span class="r-main">
-      <span class="r-line"><span class="side ${d.side}">${d.side === "buy" ? "BOUGHT" : "SOLD"}</span><span class="tk">${esc(d.ticker)}</span><span class="co">${esc(d.company)}</span></span>
-      <span class="who">${esc(d.member)}${d.party ? ` · ${esc(d.party)}-${esc(d.state)}` : ""} · ${d.chamber === "house" ? "House" : "Senate"} · ${amount(d)}</span>
+    <span class="r-text">
+      <span class="r-title"><b>${esc(d.member)}</b> ${d.side === "buy" ? "bought" : "sold"} <b class="tk">${esc(d.ticker)}</b><span class="co">${esc(d.company)}</span></span>
+      <span class="r-sub">Traded ${dShort(d.tradeDate)} · made public ${dShort(d.filedDate)}${hasRt ? ` · <span class="rt" title="Bitget lists r${esc(d.ticker)}, a token that trades 24/7">Bitget 24/7</span>` : ""}</span>
     </span>
-    <span class="r-dates"><span>Traded <b>${dShort(d.tradeDate)}</b> → filed <b>${dShort(d.filedDate)}</b></span><span class="sub">${d.lagDays} day${d.lagDays === 1 ? "" : "s"} to file${d.stale ? " · older trade" : ""}</span></span>
-    <span class="r-end"><span class="r-verdict"><span class="v v-${a.verdict}" title="${esc(a.why || "Price move since the member's trade, against SPY, in the member's direction")}"><span class="vd" aria-hidden="true"></span>${VERDICT[a.verdict] || a.verdict}</span>${num}</span>${flags.length ? `<span class="r-flags">${flags.join("")}</span>` : ""}</span>
-    <span class="r-chev" aria-hidden="true">›</span>
+    <span class="r-verdict"><span class="v v-${a.verdict}" title="${esc(a.why || "What the stock has done since the trade, compared with the overall market, in the member's direction")}"><i aria-hidden="true"></i>${VERDICT[a.verdict] || a.verdict}</span>${note ? `<span class="v-num" title="Compared with the overall market (SPY)">${note}</span>` : ""}</span>
   </button></li>`;
 }
 
-function updateBadge() {
-  const f = S.f, n = (f.win !== "recent") + !!f.chamber + f.rtoken + f.cluster + f.overlap + f.mine, b = $("#f-badge");
-  b.hidden = !n; b.textContent = String(n);
-}
-
 function renderFeed(keepScroll) {
-  const rows = visible();
-  const feed = $("#feed");
+  const rows = visible(), feed = $("#feed"), c = $("#count");
   const stale = S.data.filter((d) => d.stale).length;
-  const c = $("#count");
-  updateBadge();
-  if (S.idFilter) c.innerHTML = `${rows.length} results for “${esc(S.idFilter.label)}” <button type="button" id="clear-ids">Clear</button>`;
-  else c.innerHTML = `Showing <strong>${rows.length.toLocaleString()}</strong> disclosure${rows.length === 1 ? "" : "s"}${S.f.win === "recent" && stale ? `. ${stale.toLocaleString()} older trades are hidden (traded over 60 days ago, often filed in bulk). <button type="button" id="show-older">Show them</button>` : ""}`;
+  $("#vhelp").textContent = VERDICT_HELP[S.f.verdict] ?? "";
+  if (S.idFilter) c.innerHTML = `${rows.length} result${rows.length === 1 ? "" : "s"} for “${esc(S.idFilter.label)}”. <button type="button" id="clear-ids">Show all trades</button>`;
+  else if (S.f.win === "recent") c.innerHTML = `${rows.length.toLocaleString()} trade${rows.length === 1 ? "" : "s"} from the last 60 days.${stale ? ` <button type="button" data-win="all">Include ${stale.toLocaleString()} older ones</button>` : ""}`;
+  else c.innerHTML = `${rows.length.toLocaleString()} trades, including older ones. <button type="button" data-win="recent">Only the last 60 days</button>`;
   if (!rows.length) {
-    feed.innerHTML = `<li class="empty"><p>Nothing matches these filters.</p><button class="btn" type="button" id="reset-f">Reset filters</button></li>`;
+    feed.innerHTML = `<li class="empty"><p>No trades match this filter.</p><button class="btn" type="button" id="reset-f">Show everything</button></li>`;
     return;
   }
   const y = window.scrollY;
-  const head = `<li class="feed-head" aria-hidden="true"><span>Member's trade</span><span>Timeline</span><span>What the market did since</span><span></span></li>`;
-  feed.innerHTML = head + rows.slice(0, 200).map(rowHTML).join("") + (rows.length > 200 ? `<li class="empty">Showing the first 200 of ${rows.length.toLocaleString()}. Narrow the filters or ask the desk.</li>` : "");
+  feed.innerHTML = rows.slice(0, 200).map(rowHTML).join("") + (rows.length > 200 ? `<li class="empty">Showing the first 200 of ${rows.length.toLocaleString()}. Use the filters or ask a question.</li>` : "");
   if (keepScroll) window.scrollTo({ top: y });
 }
 
@@ -240,67 +182,48 @@ async function series(t) {
   return S.pxCache.get(t);
 }
 
-function chartSVG(s, d, live) {
+function chartSVG(s, d) {
   const W = 440, H = 150, P = { l: 6, r: 6, t: 10, b: 20 };
   const n = s.c.length, lo = Math.min(...s.c), hi = Math.max(...s.c), span = hi - lo || 1;
   const x = (i) => P.l + (i * (W - P.l - P.r)) / (n - 1);
   const y = (v) => P.t + (1 - (v - lo) / span) * (H - P.t - P.b);
-  const at = (day) => { const i = s.d.findIndex((z) => z >= day); return i; };
+  const at = (day) => s.d.findIndex((z) => z >= day);
   const path = s.c.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
   const it = at(d.a.entryDay || d.tradeDate), iff = at(d.a.filedDay || d.filedDate);
   const mk = [];
   if (it >= 0) mk.push(`<circle class="mk-t" cx="${x(it)}" cy="${y(s.c[it])}" r="5"><title>Member traded ${esc(d.tradeDate)} near ${px(s.c[it])}</title></circle>`);
-  if (iff >= 0) mk.push(`<path class="mk-f" d="M${x(iff)},${y(s.c[iff]) - 7} l6,7 l-6,7 l-6,-7z"><title>Disclosed ${esc(d.filedDate)} near ${px(s.c[iff])}</title></path>`);
+  if (iff >= 0) mk.push(`<path class="mk-f" d="M${x(iff)},${y(s.c[iff]) - 7} l6,7 l-6,7 l-6,-7z"><title>Made public ${esc(d.filedDate)} near ${px(s.c[iff])}</title></path>`);
   mk.push(`<circle class="mk-n" cx="${x(n - 1)}" cy="${y(s.c[n - 1])}" r="3.5"><title>Last close ${px(s.c[n - 1])}</title></circle>`);
-  const label = `Price of ${d.ticker} from ${s.d[0]} to ${s.d[n - 1]}. Member traded ${d.tradeDate}; disclosed ${d.filedDate}.`;
+  const label = `Price of ${d.ticker} from ${s.d[0]} to ${s.d[n - 1]}. Member traded ${d.tradeDate}; made public ${d.filedDate}.`;
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label)}">
     <line class="ax" x1="${P.l}" x2="${W - P.r}" y1="${H - P.b}" y2="${H - P.b}"/>
     <path class="ln" d="${path}"/>${mk.join("")}
     <text x="${P.l}" y="${H - 5}">${esc(dShort(s.d[0]))}</text><text x="${W - P.r}" y="${H - 5}" text-anchor="end">${esc(dShort(s.d[n - 1]))}</text>
     <text x="${P.l}" y="9">high ${px(hi)}</text><text x="${W - P.r}" y="${H - 5 - 12}" text-anchor="end">low ${px(lo)}</text></svg>
-    <div class="legend"><span>○ member's trade${it < 0 ? " (before this window)" : ""}</span><span>◆ disclosure</span><span>● last close</span></div>`;
+    <div class="legend"><span>○ the member's trade${it < 0 ? " (before this window)" : ""}</span><span>◆ made public</span><span>● latest close</span></div>`;
 }
 
-// ---------- detail panel ----------
+// ---------- detail drawer ----------
+/** The full calculation, for the people who want it. */
 function explain(d) {
-  const a = d.a, who = d.member, act = d.side === "buy" ? "bought" : "sold";
-  if (a.verdict === "UNCLEAR" || a.verdict === "INVALID") return esc(a.why || "No verdict.");
-  const tail = {
-    OPEN: (a.rTotal ?? 0) >= 0
-      ? "Little of the move has happened yet: someone acting today is not obviously behind the member. That says nothing about whether the trade was informed."
-      : "The price has drifted against the member, but within its normal noise, so nothing has clearly been missed and nothing has clearly failed either.",
-    PRICED_IN: "The market has already moved in the member's direction, so acting now means paying for a move the member already captured.",
-    REVERSED: "The market moved against the member since the trade, so an entry today is at a better price than theirs (or the idea is failing).",
-  }[a.verdict];
-  return `${esc(who)} ${act} <b>${esc(d.ticker)}</b> on ${esc(d.tradeDate)} at about $${px(a.entry)}. It was disclosed ${d.lagDays} day${d.lagDays === 1 ? "" : "s"} later (${esc(d.filedDate)}, about $${px(a.filedPx)}). Since the trade the stock has moved <b class="${cls(a.rTotal)}">${pct(a.rTotal)}</b> versus SPY in the member's direction: ${pct(a.rBefore)} before anyone could see the filing and ${pct(a.rSince)} since. That is <b>${(a.z ?? 0).toFixed(1)}σ</b> of the stock's own typical noise over ${a.h} trading day${a.h === 1 ? "" : "s"}. <b>${VERDICT[a.verdict]}.</b> ${tail}`;
-}
-
-/** Top of the detail panel: the verdict in plain words, three numbers, and the math tucked away. */
-function verdictCard(d) {
   const a = d.a, act = d.side === "buy" ? "bought" : "sold";
-  const lead = `${esc(d.member)} ${act} <b>${esc(d.ticker)}</b> on ${dShort(d.tradeDate)} and disclosed it ${d.lagDays} day${d.lagDays === 1 ? "" : "s"} later.`;
-  const chip = `<span class="v v-${a.verdict}"><span class="vd" aria-hidden="true"></span>${VERDICT[a.verdict] || a.verdict}</span>`;
-  if (a.verdict === "UNCLEAR" || a.verdict === "INVALID") return `<div class="verdict-card"><div class="vc-top">${chip}</div><p>${lead}</p><p class="muted">${esc(a.why || "No verdict.")}</p></div>`;
-  const plain = {
-    OPEN: (a.rTotal ?? 0) >= 0
-      ? "Not priced in yet. The stock has not clearly moved past the member's entry, so acting today is not obviously late."
-      : "Not priced in. The price has drifted against the member, but within its normal noise, so nothing has clearly been missed.",
-    PRICED_IN: "Priced in. The market has already moved their way, so acting now means paying for a move they already captured.",
-    REVERSED: "Reversed. The market moved against the member since the trade, so an entry today is at a better price than theirs (or the idea is failing).",
-  }[a.verdict];
-  return `<div class="verdict-card"><div class="vc-top">${chip}<span class="muted">${lead}</span></div>
-    <p>${plain}</p>
-    <div class="vtiles">
-      <div class="vtile"><span class="l">Before it was public</span><span class="n ${cls(a.rBefore)}">${pct(a.rBefore)}</span></div>
-      <div class="vtile"><span class="l">Since it was public</span><span class="n ${cls(a.rSince)}">${pct(a.rSince)}</span></div>
-      <div class="vtile"><span class="l">Total vs SPY</span><span class="n ${cls(a.rTotal)}">${pct(a.rTotal)}</span></div>
-    </div>
-    <p class="fine">Moves are against SPY, in the member's direction (positive = it went their way). A description of what happened, not a forecast.</p>
-    <details class="math"><summary>How this is calculated</summary><div class="why">${explain(d)}</div></details></div>`;
+  if (a.verdict === "UNCLEAR" || a.verdict === "INVALID") return esc(a.why || "No verdict.");
+  return `${esc(d.member)} ${act} ${esc(d.ticker)} on ${esc(d.tradeDate)} at about $${px(a.entry)}. It was made public ${d.lagDays} day${d.lagDays === 1 ? "" : "s"} later (${esc(d.filedDate)}, about $${px(a.filedPx)}). Since the trade the stock has moved ${pct(a.rTotal)} versus SPY in the member's direction: ${pct(a.rBefore)} before anyone could see the filing and ${pct(a.rSince)} since. That is ${(a.z ?? 0).toFixed(1)}σ of the stock's own typical noise over ${a.h} trading day${a.h === 1 ? "" : "s"}. "Too late" means at least 1σ and at least 1% their way; "Went the other way" means the same against them; anything else is "Still early".`;
 }
 
-const mid = (rt) => (rt ? rt.mid ?? rt.last : null); // bid/ask midpoint: `last` can lag the live book on a thin token
-const fresh = (q) => !!(q && q.rtoken && q.rtoken.mid != null); // a two-sided book is what "trading right now" means here
+function verdictCard(d) {
+  const a = d.a;
+  const chip = `<div class="v v-${a.verdict}"><i aria-hidden="true"></i>${VERDICT[a.verdict] || a.verdict}</div>`;
+  if (a.verdict === "UNCLEAR" || a.verdict === "INVALID") return `<div class="verdict-card">${chip}<p>${esc(a.why || "No verdict.")}</p></div>`;
+  const mv = `Since the trade, the stock has ${moveText(a)} (compared with the overall market).`;
+  const body = {
+    OPEN: `${mv} That isn't enough to say the news is already priced in, so following now wouldn't clearly be late.`,
+    PRICED_IN: `${mv} The move has already happened, so following now means paying for it.`,
+    REVERSED: `${mv} Someone following today would get a better price than the member did, or the idea is failing.`,
+  }[a.verdict];
+  return `<div class="verdict-card">${chip}<p>${body}</p>
+    <p class="fine">Before the filing was public: ${pct(a.rBefore)}. Since: ${pct(a.rSince)}. (Positive means their way.) This describes the past; it is not a forecast.</p></div>`;
+}
 
 /** Size a limit order the way Bitget will accept it: its own price/quantity precision and minimums. */
 function planOrder(rt, t) {
@@ -316,11 +239,11 @@ function gates(d, q, t) {
   const g = [], rt = q && q.rtoken, memberSide = d.side;
   const add = (lvl, txt) => g.push({ lvl, txt });
   if (!S.rt.set.has(d.ticker)) add("fail", `Bitget lists no r${d.ticker}USDT pair, so there is nothing to trade 24/7.`);
-  else if (!rt) add("fail", "No live rToken quote yet (feed unreachable or still loading).");
+  else if (!rt) add("fail", "No live token quote yet (feed unreachable or still loading).");
   else {
     if (S.rt.mock) add("warn", "Quote is MOCK development data, not Bitget.");
     else if (rt.mid == null) add("warn", `r${d.ticker} has no two-sided book right now, so it is not really trading; the last print (${px(rt.last)}) may be stale.`);
-    else add("pass", `Live rToken book: bid ${px(rt.bid)} / ask ${px(rt.ask)} USDT.`);
+    else add("pass", `Live token book: bid ${px(rt.bid)} / ask ${px(rt.ask)} USDT.`);
     const sp = q.spreadBps;
     if (sp == null) add("warn", "No bid/ask available to judge liquidity.");
     else if (sp > 100) add("fail", `Spread is ${Math.round(sp)} bps: too thin to trade sensibly.`);
@@ -334,7 +257,7 @@ function gates(d, q, t) {
   else add("pass", `Order size ${t.budget} USDT is inside the 250 USDT cap and above Bitget's ${minUsdt} USDT minimum.`);
   if (t.slip > 50) add("fail", "Slippage allowance is capped at 50 bps.");
   if (d.stale) add("warn", `The member's trade is ${d.ageDays} days old.`);
-  if (d.a.verdict === "PRICED_IN" && t.side === memberSide) add("warn", "Same side as the member, but their move is already priced in.");
+  if (d.a.verdict === "PRICED_IN" && t.side === memberSide) add("warn", "Same side as the member, but their move has already happened.");
   if (t.side !== memberSide) add("info", "You chose the opposite side of the member's trade.");
   if (t.side === "sell") add("info", `A sell needs an existing r${d.ticker} balance in the demo account.`);
   add("info", "Paper trading only. This desk holds no keys and never sends an order.");
@@ -359,50 +282,56 @@ function ticketHTML(d) {
       <label>Slippage (bps)<input id="tk-slip" type="number" inputmode="decimal" min="1" max="50" step="1" value="${t.slip}"></label>
     </div>
     <ul class="gates">${g.map((x) => `<li><span class="gt gt-${x.lvl}">${x.lvl.toUpperCase()}</span><span>${esc(x.txt)}</span></li>`).join("")}</ul>
-    ${blocked ? `<p class="blocked">Ticket blocked by the checks above. Nothing to copy.</p>` : cmd ? `<pre class="cmd" id="cmd">${esc(cmd)}</pre>
+    ${blocked ? `<p class="blocked">Practice order blocked by the checks above. Nothing to copy.</p>` : cmd ? `<pre class="cmd" id="cmd">${esc(cmd)}</pre>
       <div class="copy-row"><button class="btn" type="button" id="copy-cmd">Copy command</button><span id="copied" class="copied" role="status"></span></div>
-      <details><summary class="muted">Order payload</summary><pre class="cmd">${esc(body)}</pre></details>
-      <p class="muted" style="font-size:.8rem">Runs against Bitget's demo environment via the official <code>bgc</code> CLI; <code>--dry-run</code> previews the exact request without sending it. Price and quantity use this pair's own precision (${p.pp} and ${p.qp} decimals). Spot market buys are sized in USDT and limit orders in base units, so this uses a limit order with your slippage allowance.</p>` : ""}`;
+      <p class="fine" style="margin-top:10px">Runs against Bitget's demo environment with the official <code>bgc</code> tool; <code>--dry-run</code> previews the request without sending it. Sizes follow this pair's own price and quantity rules.</p>
+      <details><summary class="fine">Order payload</summary><pre class="cmd">${esc(body)}</pre></details>` : ""}`;
+}
+
+function bitgetBlock(d, q, rt) {
+  if (!S.rt.set.has(d.ticker)) return "";
+  const closed = S.market && !S.market.open;
+  const body = !rt
+    ? (S.qTried.has(d.ticker)
+      ? `<p class="muted">Bitget's price feed isn't responding right now, so there is no live price to show. We never show stale prices. Try again in a few minutes.</p>`
+      : `<p class="muted"><span class="spin" aria-hidden="true"></span>Loading the live price…</p>`)
+    : `<dl class="kv"><dt>r${esc(d.ticker)} price now</dt><dd>${px(mid(rt))} USDT</dd>
+        <dt>Last US stock price</dt><dd>${q.equity ? px(q.equity.last) : "n/a"}</dd>
+        <dt>Difference</dt><dd class="${cls(q.gap)}">${pct(q.gap, 2)}</dd>
+        <dt>Gap between buy and sell price</dt><dd>${q.spreadBps == null ? "n/a" : Math.round(q.spreadBps) + " bps"}</dd></dl>
+      <p class="fine" style="margin-top:8px">${closed ? "US stocks are closed, so this difference is where the market is already pricing the stock ahead of the next open." : "US stocks are open, so the difference is a small premium or discount."} 100 bps = 1%.${S.rt.mock ? " <b>MOCK data.</b>" : ""}</p>`;
+  return `<section class="sec"><h3>Also trades around the clock on Bitget</h3>
+    <p class="muted">Bitget lists this stock as a token, r${esc(d.ticker)}, that trades even when Wall Street is closed.</p>${body}
+    <details class="more"><summary>Make a practice order (paper trading, nothing is sent)</summary><div id="ticket">${ticketHTML(d)}</div></details></section>`;
 }
 
 async function renderDetail(d, soft) {
   const el = $("#detail");
   S.sel = d.id;
-  const a = d.a, q = S.quotes[d.ticker], rt = q && q.rtoken, m = S.market;
+  const q = S.quotes[d.ticker], rt = q && q.rtoken;
   const s = await series(d.ticker);
-  const closed = m && !m.open;
-  const rtBlock = !S.rt.set.has(d.ticker) ? `<p class="muted">Bitget has no r${esc(d.ticker)} token, so this name is not tradable 24/7 there.</p>`
-    : !rt ? (S.qTried.has(d.ticker)
-      ? `<p class="muted">Bitget's live price feed is not responding right now, so there is no r${esc(d.ticker)} price to show. The desk never shows stale prices; try again in a few minutes.</p>`
-      : `<p class="muted"><span class="spin" aria-hidden="true"></span>Loading live rToken quote…</p>`)
-    : `<dl class="kv"><dt>r${esc(d.ticker)}USDT price (bid/ask midpoint)</dt><dd>${px(mid(rt))}</dd>
-        <dt>Last US stock price</dt><dd>${q.equity ? px(q.equity.last) : "n/a"}</dd>
-        <dt>rToken vs last stock price</dt><dd class="${cls(q.gap)}">${pct(q.gap, 2)}</dd>
-        <dt>Best bid / ask (spread)</dt><dd>${px(rt.bid)} / ${px(rt.ask)} (${q.spreadBps == null ? "n/a" : Math.round(q.spreadBps) + " bps"})</dd>
-        <dt>Last trade</dt><dd>${px(rt.last)}</dd>
-        <dt>24h change</dt><dd class="${cls(rt.chg24h)}">${rt.chg24h == null ? "n/a" : pct(rt.chg24h, 2)}</dd></dl>
-        <p class="fine" style="margin-top:8px">${closed ? "US stocks are closed: this gap is where the market is already pricing the name ahead of the next open." : "US stocks are open, so the gap is a premium or discount rather than an off-hours move."} The spread is the distance between the best buy and sell price; 100 bps = 1%.${S.rt.mock ? " <b>MOCK data.</b>" : ""}</p>`;
-  const flags = [];
-  if (d.flags.cluster) flags.push(`${d.flags.cluster + 1} members traded ${esc(d.ticker)} the same way within 30 days.`);
-  if (d.flags.overlap.length) flags.push(`${esc(d.member)} sits on ${esc(d.flags.overlap.join("; "))}, which oversees ${esc(d.sector)}. A heuristic overlap, not an accusation.`);
-  if (d.flags.late) flags.push(`Filed ${d.lagDays} days after the trade; the STOCK Act limit is 45.`);
-  if (d.owner && d.owner !== "self") flags.push(d.owner === "joint" ? "Held jointly with a spouse." : d.owner === "child" ? "Held by a dependent child." : "Held by the member's spouse.");
-  if (!d.matched) flags.push("Filer not matched to a sitting member, so committee data is unavailable.");
-  el.hidden = false;
-  el.innerHTML = `<div class="d-head"><div><h2 id="d-title" tabindex="-1"><span class="side ${d.side}">${d.side === "buy" ? "BOUGHT" : "SOLD"}</span><span class="mono">${esc(d.ticker)}</span><span class="muted" style="font-weight:400;font-size:.95rem">${esc(d.company)}</span></h2>
-      <div class="d-sub">${esc(d.member)}${d.party ? ` (${esc(d.party)}-${esc(d.state)})` : ""} · ${d.chamber === "house" ? "House" : "Senate"} · ${amount(d)} · ${esc(d.sector || "sector n/a")}${d.industry ? ` · ${esc(d.industry)}` : ""}</div>
-      <div class="d-sub"><a href="${esc(d.link)}" target="_blank" rel="noopener noreferrer">Source filing ↗</a></div></div>
+  const keep = soft ? { top: el.scrollTop, open: $$("details", el).map((x) => x.open) } : null;
+  const facts = [];
+  facts.push(`${esc(d.member)}${d.party ? ` (${esc(d.party)}-${esc(d.state)})` : ""}, ${d.chamber === "house" ? "House" : "Senate"}. Reported amount: ${amount(d)}. Sector: ${esc(d.sector || "n/a")}${d.industry ? ` (${esc(d.industry)})` : ""}.`);
+  if (d.flags.cluster) facts.push(`${d.flags.cluster + 1} members traded ${esc(d.ticker)} the same way within 30 days.`);
+  if (d.flags.overlap.length) facts.push(`${esc(d.member)} sits on ${esc(d.flags.overlap.join("; "))}, which oversees ${esc(d.sector)}. A rough match, not an accusation.`);
+  if (d.flags.late) facts.push(`Reported ${d.lagDays} days after the trade; the legal limit is 45.`);
+  if (d.owner && d.owner !== "self") facts.push(d.owner === "joint" ? "Held jointly with a spouse." : d.owner === "child" ? "Held by a dependent child." : "Held by the member's spouse.");
+  if (d.instrument === "option") facts.push("This was an option trade.");
+  if (!d.matched) facts.push("The filer isn't matched to a sitting member, so committee data is unavailable.");
+  el.hidden = false; $("#scrim").hidden = false;
+  el.innerHTML = `<div class="d-head"><div><h2 id="d-title" tabindex="-1">${esc(d.member)} ${d.side === "buy" ? "bought" : "sold"} <span class="mono">${esc(d.ticker)}</span></h2>
+      <p class="d-sub">${esc(d.company)} · traded ${dShort(d.tradeDate)} · made public ${dShort(d.filedDate)} (${d.lagDays} day${d.lagDays === 1 ? "" : "s"} later)</p>
+      <p class="d-sub"><a href="${esc(d.link)}" target="_blank" rel="noopener noreferrer">Read the original filing ↗</a></p></div>
       <button class="icon-btn close" type="button" id="d-close" aria-label="Close details"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div>
     ${verdictCard(d)}
-    <section class="sec"><h3>Price since the trade</h3>${s ? chartSVG(s, d) : `<p class="muted">Price history unavailable.</p>`}</section>
-    ${flags.length ? `<section class="sec"><h3>Worth knowing</h3><ul style="margin:0;padding-left:18px">${flags.map((f) => `<li>${f}</li>`).join("")}</ul></section>` : ""}
-    <section class="sec"><h3>Trading 24/7 on Bitget</h3>${rtBlock}</section>
-    <section class="sec"><h3>Practice order · paper trading, nothing is sent</h3><div id="ticket">${ticketHTML(d)}</div></section>
-    <p class="fine" style="margin-top:16px">Descriptive, not a forecast. On the Proof tab we test whether verdicts predict returns; so far they do not.</p>`;
-  if (!soft) {
-    if (matchMedia("(max-width: 980px)").matches) document.body.style.overflow = "hidden";
-    $("#d-title").focus({ preventScroll: true });
-  }
+    <section class="sec"><h3>What the stock did</h3>${s ? chartSVG(s, d) : `<p class="muted">Price history unavailable.</p>`}</section>
+    ${bitgetBlock(d, q, rt)}
+    <details class="more"><summary>More details and how this was calculated</summary>
+      <ul>${facts.map((f) => `<li>${f}</li>`).join("")}</ul>
+      <p class="why">${explain(d)}</p></details>`;
+  if (keep) { keep.open.forEach((o, i) => { const x = $$("details", el)[i]; if (x) x.open = o; }); el.scrollTop = keep.top; }
+  else { document.body.style.overflow = "hidden"; $("#d-title").focus({ preventScroll: true }); }
   $$(".row").forEach((r) => r.setAttribute("aria-selected", String(r.dataset.id === d.id)));
   if (S.rt.set.has(d.ticker) && !rt && !S.qTried.has(d.ticker)) {
     S.qTried.add(d.ticker); // one attempt per panel; the 30s tick retries and a recovered feed clears this
@@ -412,7 +341,7 @@ async function renderDetail(d, soft) {
 }
 
 function closeDetail() {
-  $("#detail").hidden = true; S.sel = null; document.body.style.overflow = "";
+  $("#detail").hidden = true; $("#scrim").hidden = true; S.sel = null; document.body.style.overflow = "";
   $$(".row").forEach((r) => r.setAttribute("aria-selected", "false"));
   if (S.opener && document.contains(S.opener)) S.opener.focus();
 }
@@ -424,9 +353,9 @@ function openById(id, opener) {
   renderDetail(d);
 }
 
-// ---------- ask the desk ----------
-const EXAMPLES = ["What did senators buy this week that's still open?", "Which disclosed stocks are gapping as rTokens right now?", "Any tech trades by members on the committee that oversees tech?", "Brief me on my watchlist"];
-function renderExamples() { $("#ask-ex").innerHTML = EXAMPLES.map((e) => `<button class="chip-btn" type="button">${esc(e)}</button>`).join(""); }
+// ---------- ask ----------
+const EXAMPLES = ["What did senators buy this week that's still open?", "Which recent trades are already too late to follow?", "Any tech trades by members on the committee that oversees tech?"];
+function renderExamples() { $("#ask-ex").innerHTML = `<span class="muted">Try:</span> ${EXAMPLES.map((e) => `<button type="button">${esc(e)}</button>`).join("")}`; }
 
 async function ask(q) {
   const go = $("#ask-go"), out = $("#answer");
@@ -434,15 +363,14 @@ async function ask(q) {
   out.innerHTML = `<span class="spin" aria-hidden="true"></span>Reading the filings…`;
   const ac = new AbortController(); const to = setTimeout(() => ac.abort(), 40000);
   try {
-    const res = await fetch("/api/ask", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ q, watchlist: S.watch }), signal: ac.signal });
+    const res = await fetch("/api/ask", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ q }), signal: ac.signal });
     const j = await res.json();
     if (!res.ok) { out.innerHTML = `<p>${esc(j.error || "Something went wrong.")}</p>`; return; }
-    const body = esc(j.answer).replace(/\[([HS]-[A-Za-z0-9-]+)\]/g, (_, id) => `<button class="cite" type="button" data-cite="${id}" aria-label="Open disclosure ${id}">${esc((S.byId.get(id) || {}).ticker || id)}</button>`);
+    const body = plainVerdicts(esc(j.answer)).replace(/\[([HS]-[A-Za-z0-9-]+)\]/g, (_, id) => `<button class="cite" type="button" data-cite="${id}" aria-label="Open trade ${id}">${esc((S.byId.get(id) || {}).ticker || id)}</button>`);
     const label = q.length > 48 ? q.slice(0, 47) + "…" : q;
     out.innerHTML = `<div class="txt">${body}</div><div class="meta">
-      <span>${j.ids.length === 0 ? "No match" : j.mode === "llm" ? `Summary by ${esc((j.model || "").split("/").pop())}; the rows below are computed, not generated` : "Computed numbers only (no model summary this time)"}</span>
-      <span>filter by ${j.planMode === "llm" ? "the model" : "keywords"}</span><span>${j.ids.length} matched</span>
-      ${j.ids.length ? `<button class="btn" type="button" id="show-ids">Show these ${j.ids.length} in the feed</button>` : ""}</div>`;
+      ${j.ids.length ? `<button class="btn" type="button" id="show-ids">Show these ${j.ids.length} in the list</button>` : "<span>No match</span>"}
+      <span>${j.mode === "llm" ? `Summary written by an AI model (${esc((j.model || "").split("/").pop())}) from the matching filings. The list's numbers are computed, not generated.` : "No AI summary this time; these are the computed numbers."}</span></div>`;
     out.dataset.ids = JSON.stringify(j.ids); out.dataset.label = label;
     if (j.mock) S.rt.mock = true;
   } catch (e) {
@@ -450,61 +378,47 @@ async function ask(q) {
   } finally { clearTimeout(to); go.disabled = false; }
 }
 
-// ---------- watchlist ----------
-function renderWatchlist() {
-  const ul = $("#wl-list");
-  ul.innerHTML = S.watch.length ? S.watch.map((t) => `<li>${esc(t)}${S.rt.set.has(t) ? ` <span class="fl rt" title="rToken available">r</span>` : ""}<button type="button" data-rm="${esc(t)}" aria-label="Remove ${esc(t)}">×</button></li>`).join("") : `<li class="muted" style="border:0;background:none;padding:0;font-family:var(--sans)">Empty. Add a ticker to get started.</li>`;
-}
-
-// ---------- proof + method ----------
+// ---------- proof ----------
 const pp = (v, d = 2) => (v == null ? "n/a" : `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(d)}%`);
 async function renderProof() {
   const el = $("#view-proof");
   if (el.dataset.ready) return;
   try { S.proof = await getJSON("/data/proof.json"); } catch { el.innerHTML = `<div class="doc"><p class="muted">Proof data not built yet. Run <code>npm run proof</code>.</p></div>`; return; }
   const P = S.proof, M = S.meta || {}, cov = (M.coverage || {}), h = cov.house || {}, sn = cov.senate || {};
-  const nf5 = P.naiveFollow["5d"], nf20 = P.naiveFollow["20d"], v5 = P.byVerdict["5d"], v20 = P.byVerdict["20d"], d5 = P.openMinusPricedIn["5d"], d20 = P.openMinusPricedIn["20d"];
+  const nf5 = P.naiveFollow["5d"], nf20 = P.naiveFollow["20d"], d5 = P.openMinusPricedIn["5d"], d20 = P.openMinusPricedIn["20d"];
   const vrow = (name, k) => `<tr><td>${name}</td>${["5d", "20d"].map((H) => { const s = P.byVerdict[H][k]; return s ? `<td>${pp(s.meanPct)}</td><td>${s.n.toLocaleString()}</td><td>${s.tClustered ?? "n/a"}</td>` : `<td colspan="3">n/a</td>`; }).join("")}</tr>`;
   const stale = S.data.filter((d) => d.stale).length;
   el.innerHTML = `<article class="doc">
     <h1>Proof: what the data say, including the parts that don't flatter us</h1>
-    <p class="lede">Every number on this page is computed by <code>pipeline/analysis.py</code> from the same filings the desk shows. Observations are clustered by filing, and each trade is assessed on the first close <em>after</em> its filing date, so there is no look-ahead.</p>
+    <p class="lede">Every number here is computed by <code>pipeline/analysis.py</code> from the same filings the desk shows. Each trade is judged from the first close <em>after</em> it became public, so nothing looks into the future.</p>
     <div class="findings">
-      <div class="finding"><span class="k">Does copying Congress work?</span><span class="big">No reliable edge</span><p>${pp(nf5.meanPct)} mean excess over SPY after 5 trading days. It looks significant per trade (t = ${nf5.tNaive}) but is not once clustered by filing (t = ${nf5.tClustered}; ${nf5.n.toLocaleString()} trades, ${nf5.clusters} filings).</p></div>
-      <div class="finding"><span class="k">Do the verdicts forecast?</span><span class="big">No, and we say so</span><p>Open minus Priced in is ${d5 ? pp(d5.diffPct) : "n/a"} at 5 days (t = ${d5?.tWelch ?? "n/a"}) and ${d20 ? pp(d20.diffPct) : "n/a"} at 20 days (t = ${d20?.tWelch ?? "n/a"}). Verdicts are accounting, not prediction.</p></div>
-      <div class="finding"><span class="k">How much is read?</span><span class="big">${h.markers ? (100 * h.parsed / h.markers).toFixed(1) : "?"}% of House rows</span><p>${h.parsed?.toLocaleString() ?? "?"} of ${h.markers?.toLocaleString() ?? "?"} transaction rows parsed. Scanned filings are not read yet (${h.scanned ?? "?"} House, ${sn.paperReports ?? "?"} Senate).</p></div>
-      <div class="finding" id="f-247"><span class="k">Does 24/7 trading help?</span><span class="big">…</span><p>Loading the live rToken study.</p></div>
+      <div class="finding"><span class="k">Does copying Congress work?</span><span class="big">No reliable edge</span><p>${pp(nf5.meanPct)} average gain over the market after 5 trading days. It looks significant per trade (t = ${nf5.tNaive}) but isn't once trades from the same filing are grouped (t = ${nf5.tClustered}; ${nf5.n.toLocaleString()} trades, ${nf5.clusters} filings).</p></div>
+      <div class="finding"><span class="k">Do our labels predict anything?</span><span class="big">No, and we say so</span><p>"Still early" minus "Too late" is ${d5 ? pp(d5.diffPct) : "n/a"} at 5 days (t = ${d5?.tWelch ?? "n/a"}) and ${d20 ? pp(d20.diffPct) : "n/a"} at 20 days (t = ${d20?.tWelch ?? "n/a"}). They describe the past; they don't forecast.</p></div>
+      <div class="finding"><span class="k">How much do we read?</span><span class="big">${h.markers ? (100 * h.parsed / h.markers).toFixed(1) : "?"}% of House rows</span><p>${h.parsed?.toLocaleString() ?? "?"} of ${h.markers?.toLocaleString() ?? "?"} transaction rows parsed. Scanned filings aren't read yet (${h.scanned ?? "?"} House, ${sn.paperReports ?? "?"} Senate).</p></div>
+      <div class="finding" id="f-247"><span class="k">Does 24/7 trading help?</span><span class="big">…</span><p>Loading the live token study.</p></div>
     </div>
-    <ul class="toc" aria-label="On this page">
-      <li><button class="chip-btn" type="button" data-jump="p1">1. Does following work?</button></li>
-      <li><button class="chip-btn" type="button" data-jump="p2">2. Do verdicts separate outcomes?</button></li>
-      <li><button class="chip-btn" type="button" data-jump="p3">3. Data coverage</button></li>
-      <li><button class="chip-btn" type="button" data-jump="p4">4. The 24/7 layer</button></li>
-      <li><button class="chip-btn" type="button" data-jump="p5">5. Limitations</button></li>
-    </ul>
-    <div class="callout"><strong>Headline.</strong> Following a Congress disclosure the day it appears has <strong>no statistically reliable edge</strong>: ${pp(nf5.meanPct)} excess over 5 trading days (naive t = ${nf5.tNaive}, but ${nf5.tClustered} once clustered by filing, ${nf5.clusters} filings) and ${pp(nf20.meanPct)} over 20 days (clustered t = ${nf20.tClustered}, borderline and not robust to the caveats below). The desk's verdicts (Open vs Priced in) do <strong>not</strong> forecast returns either. So the desk does not emit buy/sell signals. It tells you what has already happened, what hasn't, and hands you the decision.</div>
-    <h2 id="p1">1. Does naively following a disclosure make money?</h2>
-    <div class="table-wrap"><table class="t"><thead><tr><th></th><th>Mean excess</th><th>Median</th><th>Hit rate</th><th>Trades</th><th>Filings</th><th>t (naive)</th><th>t (clustered)</th></tr></thead><tbody>
+    <h2>1. Does naively following a disclosure make money?</h2>
+    <div class="table-wrap"><table class="t"><thead><tr><th></th><th>Mean excess</th><th>Median</th><th>Hit rate</th><th>Trades</th><th>Filings</th><th>t (naive)</th><th>t (grouped)</th></tr></thead><tbody>
       ${[["5 trading days", nf5], ["20 trading days", nf20]].map(([n, s]) => `<tr><td>${n}</td><td>${pp(s.meanPct)}</td><td>${pp(s.medianPct)}</td><td>${s.hitRatePct}%</td><td>${s.n.toLocaleString()}</td><td>${s.clusters}</td><td>${s.tNaive}</td><td>${s.tClustered}</td></tr>`).join("")}
     </tbody></table></div>
-    <p class="muted">Direction-adjusted excess return vs SPY (positive = the member's side was right). |t| below ~2 is indistinguishable from zero. Trades inside one filing move together, so the per-trade t-stat overstates significance; the clustered one is the honest one.</p>
-    <h2 id="p2">2. Do the desk's verdicts separate outcomes?</h2>
-    <div class="table-wrap"><table class="t"><thead><tr><th rowspan="2">Verdict at filing</th><th colspan="3">Next 5 days</th><th colspan="3">Next 20 days</th></tr><tr><th>Mean</th><th>n</th><th>t</th><th>Mean</th><th>n</th><th>t</th></tr></thead><tbody>
-      ${vrow("Open", "OPEN")}${vrow("Priced in", "PRICED_IN")}${vrow("Reversed", "REVERSED")}</tbody></table></div>
-    <div class="callout">Open − Priced in: <strong>${d5 ? pp(d5.diffPct) : "n/a"}</strong> at 5 days (Welch t = ${d5?.tWelch ?? "n/a"}) and <strong>${d20 ? pp(d20.diffPct) : "n/a"}</strong> at 20 days (t = ${d20?.tWelch ?? "n/a"}). Neither is significant, and the sign flips between horizons. <strong>Verdicts are an accounting of what a follower has already missed, not a prediction</strong>, and the desk labels them that way everywhere.</div>
-    <h2 id="p3">3. Data coverage and quality</h2>
+    <p class="muted">Gain over SPY in the member's direction (positive = the member was right). A t value below about 2 is indistinguishable from zero. Trades inside one filing move together, so the per-trade t overstates significance; the grouped one is the honest one.</p>
+    <h2>2. Do the desk's labels separate outcomes?</h2>
+    <div class="table-wrap"><table class="t"><thead><tr><th rowspan="2">Label at filing</th><th colspan="3">Next 5 days</th><th colspan="3">Next 20 days</th></tr><tr><th>Mean</th><th>n</th><th>t</th><th>Mean</th><th>n</th><th>t</th></tr></thead><tbody>
+      ${vrow("Still early", "OPEN")}${vrow("Too late", "PRICED_IN")}${vrow("Went the other way", "REVERSED")}</tbody></table></div>
+    <div class="callout">"Still early" minus "Too late": <strong>${d5 ? pp(d5.diffPct) : "n/a"}</strong> at 5 days (Welch t = ${d5?.tWelch ?? "n/a"}) and <strong>${d20 ? pp(d20.diffPct) : "n/a"}</strong> at 20 days (t = ${d20?.tWelch ?? "n/a"}). Neither is significant and the sign flips. <strong>The labels are an accounting of what a follower has already missed, not a prediction.</strong></div>
+    <h2>3. Data coverage and quality</h2>
     <div class="stats">
       <div class="stat"><div class="n">${h.markers ? (100 * h.parsed / h.markers).toFixed(1) : "?"}%</div><div class="l">of ${h.markers?.toLocaleString() ?? "?"} House transaction rows parsed from PDFs</div></div>
-      <div class="stat"><div class="n">${h.scanned ?? "?"} / ${h.filings ?? "?"}</div><div class="l">House filings are scanned images with no text (not readable yet)</div></div>
+      <div class="stat"><div class="n">${h.scanned ?? "?"} / ${h.filings ?? "?"}</div><div class="l">House filings are scanned images (not readable yet)</div></div>
       <div class="stat"><div class="n">${sn.paperReports ?? "?"} / ${sn.reports ?? "?"}</div><div class="l">Senate reports are paper scans (not readable yet)</div></div>
-      <div class="stat"><div class="n">${stale.toLocaleString()}</div><div class="l">disclosed trades are over 60 days old: hidden from the default feed</div></div>
+      <div class="stat"><div class="n">${stale.toLocaleString()}</div><div class="l">trades are over 60 days old and hidden by default</div></div>
     </div>
-    <p class="muted">Errors we catch instead of passing on: trade dates that fall after the filing date (a typo in the original), option trades whose call/put side isn't stated (marked Unclear rather than guessed), and filers who don't match a sitting member (no committee claim is made for them).</p>
-    <h2 id="p4">4. The 24/7 layer, observed live</h2>
+    <p class="muted">Errors we catch instead of passing on: trade dates after the filing date (a typo in the original), option trades whose call or put isn't stated (labelled "Can't tell" rather than guessed), and filers who don't match a sitting member (no committee claim is made for them).</p>
+    <h2>4. The 24/7 layer, observed live</h2>
     <div id="gap-study"><p class="muted"><span class="spin" aria-hidden="true"></span>Loading…</p></div>
-    <h2 id="p5">5. Limitations</h2>
+    <h2>5. Limitations</h2>
     <ul>${P.caveats.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>
-    <p class="muted">Method: ${esc(P.method.split("\n").slice(0, 1).join(" "))} Generated ${esc(P.asOf)}.</p></article>`;
+    <p class="muted">Generated ${esc(P.asOf)}.</p></article>`;
   el.dataset.ready = "1";
   renderGapStudy();
 }
@@ -519,62 +433,65 @@ async function renderGapStudy() {
   const b = g.baseline;
   const card = $("#f-247");
   if (card) card.innerHTML = g.snapshots
-    ? `<span class="k">Does 24/7 trading help?</span><span class="big">${bps(b.closed.medianAbsGapBps)}</span><p>Median rToken-vs-stock gap while US stocks are closed, against ${bps(b.open.medianAbsGapBps)} while both trade. Observed over ${g.snapshots.toLocaleString()} snapshots; spreads are wider overnight (${bps(b.closed.medianSpreadBps)} vs ${bps(b.open.medianSpreadBps)}).</p>`
-    : `<span class="k">Does 24/7 trading help?</span><span class="big">Collecting</span><p>The desk records rToken and stock prices every 15 minutes. Results appear here as they accumulate.</p>`;
-  const intro = `<p>Every 15 minutes the desk records the rToken price and the US equity price for the recently disclosed names. That lets us test the thesis on real data instead of asserting it: <em>when the stock market is closed, does the rToken already price in where the stock will open?</em></p>`;
+    ? `<span class="k">Does 24/7 trading help?</span><span class="big">${bps(b.closed.medianAbsGapBps)}</span><p>Typical gap between a token and its stock while US stocks are closed, against ${bps(b.open.medianAbsGapBps)} while both trade. Observed over ${g.snapshots.toLocaleString()} snapshots. Overnight the buy-sell spread is also wider (${bps(b.closed.medianSpreadBps)} vs ${bps(b.open.medianSpreadBps)}).</p>`
+    : `<span class="k">Does 24/7 trading help?</span><span class="big">Collecting</span><p>The desk records token and stock prices every 15 minutes. Results appear here as they accumulate.</p>`;
+  const intro = `<p>Every 15 minutes the desk records the token price and the US stock price for recently reported names. That lets us test the idea on real data instead of asserting it: <em>when the stock market is closed, does the token already price in where the stock will open?</em></p>`;
   const md = (t) => new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
   const stalled = !!g.last && Date.now() - g.last > 3 * 3600e3;
   const lastTxt = g.last ? `${md(g.last)}, ${new Date(g.last).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" })} UTC` : "";
   const base = g.snapshots ? `<div class="stats">
       <div class="stat"><div class="n">${g.snapshots.toLocaleString()}</div><div class="l">snapshots recorded${g.first ? (stalled ? `, ${md(g.first)} to ${md(g.last)}` : ` since ${md(g.first)}`) : ""}</div></div>
-      <div class="stat"><div class="n">${bps(b.open.medianAbsGapBps)}</div><div class="l">median rToken-vs-stock gap while both trade (${b.open.samples.toLocaleString()} samples; spread ${bps(b.open.medianSpreadBps)})</div></div>
-      <div class="stat"><div class="n">${bps(b.closed.medianAbsGapBps)}</div><div class="l">median gap while US stocks are closed (${b.closed.samples.toLocaleString()} samples; spread ${bps(b.closed.medianSpreadBps)})</div></div></div>` : "";
+      <div class="stat"><div class="n">${bps(b.open.medianAbsGapBps)}</div><div class="l">typical token-vs-stock gap while both trade (${b.open.samples.toLocaleString()} samples; spread ${bps(b.open.medianSpreadBps)})</div></div>
+      <div class="stat"><div class="n">${bps(b.closed.medianAbsGapBps)}</div><div class="l">typical gap while US stocks are closed (${b.closed.samples.toLocaleString()} samples; spread ${bps(b.closed.medianSpreadBps)})</div></div></div>` : "";
   if (!g.weekends.length) {
     el.innerHTML = intro + base + `<div class="callout"><strong>No complete weekend captured.</strong> ${stalled
-      ? `The recorder has stored nothing since ${esc(lastTxt)}: Bitget's price feed stopped answering (it returns "service unavailable"), so the Friday-close to Monday-open test could not be completed. The open-versus-closed numbers above are real and come from the period the feed was up. No claim is made about whether weekend rToken gaps predict the open.`
-      : `The next full weekend (Friday close to Monday open) will be analysed here once Monday's open has happened. Until then, no claim is made about whether weekend rToken gaps predict the open.`}</div>`;
+      ? `The recorder has stored nothing since ${esc(lastTxt)}: Bitget's price feed stopped answering (it returns "service unavailable"), so the Friday-close to Monday-open test could not be completed. The open-versus-closed numbers above are real and come from the period the feed was up. No claim is made about whether weekend token gaps predict the open.`
+      : `The next full weekend (Friday close to Monday open) will be analysed here once Monday's open has happened. Until then, no claim is made about whether weekend token gaps predict the open.`}</div>`;
     return;
   }
-  const w = g.weekends.map((k) => `<h3 style="margin-top:14px">${fdate(k.friday)} close → ${fdate(k.monday)} open · ${k.n} names</h3>
+  const w = g.weekends.map((k) => `<h3 style="margin-top:16px">${fdate(k.friday)} close → ${fdate(k.monday)} open · ${k.n} names</h3>
     <div class="stats">
-      <div class="stat"><div class="n">${k.correlation == null ? "n/a" : k.correlation.toFixed(2)}</div><div class="l">correlation, weekend rToken gap vs Monday move</div></div>
-      <div class="stat"><div class="n">${k.signAgreementPct == null ? "n/a" : Math.round(k.signAgreementPct) + "%"}</div><div class="l">same direction (of ${k.signAgreementN} names with a gap ≥ 0.2%)</div></div>
-      <div class="stat"><div class="n">${k.meanAbsWeekendGapPct.toFixed(2)}% / ${k.meanAbsMondayMovePct.toFixed(2)}%</div><div class="l">mean |weekend gap| / mean |Monday move|</div></div></div>
-    <div class="table-wrap"><table class="t"><thead><tr><th>Name</th><th>rToken weekend gap</th><th>Monday move</th></tr></thead><tbody>${k.pairs.slice(0, 8).map((p) => `<tr><td>${esc(p.t)}</td><td class="${cls(p.weekendGap)}">${pct(p.weekendGap, 2)}</td><td class="${cls(p.mondayMove)}">${pct(p.mondayMove, 2)}</td></tr>`).join("")}</tbody></table></div>`).join("");
+      <div class="stat"><div class="n">${k.correlation == null ? "n/a" : k.correlation.toFixed(2)}</div><div class="l">correlation, weekend token gap vs Monday move</div></div>
+      <div class="stat"><div class="n">${k.signAgreementPct == null ? "n/a" : Math.round(k.signAgreementPct) + "%"}</div><div class="l">same direction (of ${k.signAgreementN} names with a gap of 0.2% or more)</div></div>
+      <div class="stat"><div class="n">${k.meanAbsWeekendGapPct.toFixed(2)}% / ${k.meanAbsMondayMovePct.toFixed(2)}%</div><div class="l">average weekend gap / average Monday move</div></div></div>
+    <div class="table-wrap"><table class="t"><thead><tr><th>Name</th><th>Token weekend gap</th><th>Monday move</th></tr></thead><tbody>${k.pairs.slice(0, 8).map((p) => `<tr><td>${esc(p.t)}</td><td class="${cls(p.weekendGap)}">${pct(p.weekendGap, 2)}</td><td class="${cls(p.mondayMove)}">${pct(p.mondayMove, 2)}</td></tr>`).join("")}</tbody></table></div>`).join("");
   el.innerHTML = intro + base + w + `<p class="muted">${esc(g.note)}${g.mock ? " <b>Includes MOCK development data.</b>" : ""}</p>`;
 }
 
+// ---------- how it works ----------
 function renderMethod() {
   const el = $("#view-method");
   if (el.dataset.ready) return;
   el.innerHTML = `<article class="doc">
-    <h1>Method</h1>
-    <p class="lede">Disclosure Desk is a human-in-the-loop research tool. The numbers are deterministic; the language model only routes your question and explains rows it was handed.</p>
-    <h2>The verdict</h2>
-    <p>For a disclosed trade in direction <em>d</em> (+1 buy, −1 sell) made on <em>t₀</em> and disclosed on <em>t₁</em>, with <code>excess</code> = the stock's return minus SPY's over the same window:</p>
+    <h1>How it works</h1>
+    <p class="lede">US lawmakers have to publish their stock trades, but only after the fact, often weeks later. By the time you read a report, the stock may have already moved. Disclosure Desk checks that for you.</p>
+    <div class="points">
+      <div class="point"><span class="n" aria-hidden="true">1</span><div><b>We read the official reports</b><span>Every House and Senate stock disclosure, straight from the filings, each one linked back to its source.</span></div></div>
+      <div class="point"><span class="n" aria-hidden="true">2</span><div><b>We check what the stock did since</b><span>Compared with the overall market, from the day of the trade. Each trade gets one label: <b style="display:inline">Still early</b>, <b style="display:inline">Too late</b> or <b style="display:inline">Went the other way</b>.</span></div></div>
+      <div class="point"><span class="n" aria-hidden="true">3</span><div><b>We add the 24/7 view</b><span>Bitget lists many US stocks as tokens (rTokens) that trade around the clock. When Wall Street is closed, you can see where these tokens already trade, and try a practice order. The desk never holds keys or sends a real order.</span></div></div>
+    </div>
+    <div class="callout">We tested the popular idea of copying Congress's trades on the real filings, and it doesn't reliably work (see the Proof tab). So the desk doesn't sell signals. It tells you what has already happened and leaves the decision to you.</div>
+
+    <h2>The labels, precisely</h2>
+    <p>For a trade in direction <em>d</em> (+1 buy, −1 sell) made on <em>t₀</em> and made public on <em>t₁</em>, with <code>excess</code> = the stock's return minus SPY's over the same window:</p>
     <ul>
-      <li><b>Moved before filing</b> = d × excess(t₀→t₁): what happened before anyone could see the trade.</li>
-      <li><b>Moved since filing</b> = d × excess(t₁→now).</li>
-      <li><b>Missed by a follower today</b> = d × excess(t₀→now), reported in σ units: <code>z = missed / (σ·√h)</code>, where σ is the stock's own daily excess-return noise over the 60 days before the trade and h the trading days elapsed.</li>
-      <li><b>Priced in</b> if z ≥ 1 and missed ≥ 1%; <b>Reversed</b> if z ≤ −1 and missed ≤ −1%; otherwise <b>Open</b>. Options are <b>Unclear</b> (the filing doesn't say call or put); trades dated after their own filing are flagged as typos.</li>
+      <li><b>Before it was public</b> = d × excess(t₀→t₁): what happened before anyone could see the trade.</li>
+      <li><b>Since it was public</b> = d × excess(t₁→now).</li>
+      <li><b>Missed by a follower today</b> = d × excess(t₀→now), measured in σ units: <code>z = missed / (σ·√h)</code>, where σ is the stock's own daily noise over the 60 days before the trade and h the trading days elapsed.</li>
+      <li><b>Too late</b> (internally "priced in") if z ≥ 1 and missed ≥ 1%. <b>Went the other way</b> ("reversed") if z ≤ −1 and missed ≤ −1%. Otherwise <b>Still early</b> ("open"). Option trades are <b>Can't tell</b>, because the filing doesn't say call or put. Trades dated after their own filing are flagged as typos.</li>
     </ul>
-    <h2>Flags</h2>
-    <ul><li><b>Cluster</b>: at least 3 members traded the same ticker the same way within 30 days.</li>
-    <li><b>Committee</b>: the member sits on a committee whose jurisdiction covers the company's sector (a coarse, heuristic mapping; context, not an accusation).</li>
-    <li><b>Late</b>: filed more than 45 days after the trade, the STOCK Act limit.</li>
-    <li><b>Stale</b>: trade more than 60 days old (often bulk filings), hidden by default.</li></ul>
     <h2>The 24/7 layer</h2>
-    <p>Congress files at any hour; US equities reprice only at the open. Bitget's rTokens (tokenized US stocks, <code>r&lt;TICKER&gt;USDT</code>) trade continuously, so when the equity market is closed the desk ranks recently disclosed names by the gap between their rToken price and the last equity close, and builds a <b>paper-trading ticket</b> for the official <code>bgc</code> CLI (<code>--paper-trading --dry-run</code>). Tickets pass a deterministic risk gate first: rToken must exist, spread ≤ 40 bps (hard stop at 100), order 10–250 USDT, slippage ≤ 50 bps, quote fresh. The desk never holds keys or places orders.</p>
-    <h2>Role of the language model</h2>
-    <ol><li><b>Planner</b>: turns a question into a JSON filter (tickers, members, party, state, sector, verdict, side, window, sort). If the model is unavailable, or its filter finds nothing, a keyword planner reads the same question.</li>
-    <li><b>Summary writer</b>: writes two sentences about the rows that matched. Code then <b>rejects the text</b> if it contains any number that is not in the data, any count or number word, or any forecast or advice, and gives the model one corrected retry before falling back to no summary. The cited list of rows underneath is rendered by code with exact figures, so nothing in it is generated.</li></ol>
-    <p>Model: Qwen (<code>qwen3-30b-a3b-fp8</code>) via Cloudflare Workers AI, or any OpenAI-compatible endpoint (for example the hackathon's Qwen credits).</p>
+    <p>Congress files at any hour; US stocks only reprice at the open. Bitget's rTokens (<code>r&lt;TICKER&gt;USDT</code>) trade continuously, so when stocks are closed the desk ranks recently reported names by the gap between their token and the last stock close, and builds a <b>practice order</b> for the official <code>bgc</code> tool (<code>--paper-trading --dry-run</code>). Each ticket first passes fixed checks: the token must exist, spread ≤ 40 bps (hard stop at 100), order 10–250 USDT, slippage ≤ 50 bps, quote fresh. If Bitget's price feed is unavailable, the desk says so and shows no price rather than a stale one.</p>
+    <h2>The AI's job</h2>
+    <ol><li><b>Understand the question</b>: turns "which senators bought tech this month?" into a filter. If the model is unavailable, a keyword reader does it.</li>
+    <li><b>Write two sentences</b> about the trades that matched. Code then <b>rejects the text</b> if it contains any number that isn't in the data, any count or number word, or any forecast or advice, and gives the model one corrected retry. The list underneath is rendered by code with exact figures, so nothing in it is generated.</li></ol>
+    <p>Model: Qwen (<code>qwen3-30b-a3b-fp8</code>) on Cloudflare Workers AI.</p>
     <h2>Sources</h2>
-    <ul><li>US House Clerk periodic transaction reports (official PDFs), parsed by <code>pipeline/house_parse.py</code>.</li>
-    <li>US Senate eFD reports, read through a public GitHub Actions mirror because efdsearch.senate.gov blocks datacenter IPs; each row links back to the eFD filing.</li>
-    <li>Prices: Yahoo Finance chart API. Sectors: Yahoo search. Members and committees: <a href="https://github.com/unitedstates/congress-legislators" rel="noopener noreferrer">unitedstates/congress-legislators</a>. rTokens: Bitget's official agent MCP (<code>crypto_market</code> for the token universe and each pair's trading rules, <code>crypto_spot_ticker</code> for live bid/ask). rToken prices use the bid/ask midpoint, because the last trade can lag the live book on a thin token.</li></ul>
+    <ul><li>US House Clerk periodic transaction reports (official PDFs).</li>
+    <li>US Senate eFD reports, read through a public GitHub mirror because efdsearch.senate.gov blocks datacenter traffic; each row links back to the eFD filing.</li>
+    <li>Prices: Yahoo Finance. Sectors: Yahoo search. Members and committees: <a href="https://github.com/unitedstates/congress-legislators" rel="noopener noreferrer">unitedstates/congress-legislators</a>. Tokens: Bitget's official agent MCP (token list and trading rules, live bid and ask). Token prices use the midpoint of bid and ask, because the last trade can lag the live book.</li></ul>
     <h2>Use of the data</h2>
-    <p>Disclosure reports may not be used for commercial purposes (5 U.S.C. §13107(c)). This is a non-commercial research demo; it is not investment advice.</p></article>`;
+    <p>Disclosure reports may not be used for commercial purposes (5 U.S.C. §13107(c)). This is a non-commercial research demo and not investment advice.</p></article>`;
   el.dataset.ready = "1";
 }
 
@@ -599,29 +516,27 @@ function wireStatic() {
     root.classList.add("no-transitions"); root.dataset.theme = next; store.set("dd.theme", next);
     requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove("no-transitions")));
   });
-  try { const t = localStorage.getItem("dd.theme"); if (t) document.documentElement.dataset.theme = JSON.parse(t); } catch { /* keep pre-paint theme */ }
 
   document.addEventListener("click", (e) => {
     const t = e.target;
+    if (t.id === "scrim") return closeDetail();
     const row = t.closest(".row"); if (row) return openById(row.dataset.id, row);
     const gw = t.closest(".gw-btn");
     if (gw) { const d = S.data.find((x) => x.ticker === gw.dataset.tk && !x.stale) || S.data.find((x) => x.ticker === gw.dataset.tk); if (d) { S.idFilter = null; openById(d.id, gw); } return; }
     const cite = t.closest(".cite"); if (cite) { const d = S.byId.get(cite.dataset.cite); if (d) openById(d.id, cite); return; }
     if (t.closest("#d-close")) return closeDetail();
-    if (t.closest("#reset-f") || t.closest("#reset-all")) return resetFilters();
-    if (t.closest("#more-f")) { const btn = $("#more-f"), open = btn.getAttribute("aria-expanded") !== "true"; btn.setAttribute("aria-expanded", String(open)); $("#more-panel").hidden = !open; return; }
-    if (t.closest("#show-older")) { S.f.win = "all"; $$('.seg-btn[data-f="win"]').forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === "all"))); S.idFilter = null; return renderFeed(); }
-    const gt = t.closest("[data-goto]"); if (gt) return setView(gt.dataset.goto);
-    const jp = t.closest("[data-jump]"); if (jp) { document.getElementById(jp.dataset.jump)?.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+    if (t.closest("#reset-f")) return resetFilters();
     if (t.closest("#clear-ids")) { S.idFilter = null; renderFeed(); return; }
-    const sh = t.closest("#show-ids"); if (sh) { const o = $("#answer"); S.idFilter = { ids: JSON.parse(o.dataset.ids), label: o.dataset.label }; renderFeed(); $("#count").scrollIntoView({ behavior: "smooth", block: "start" }); return; }
-    const ex = t.closest("#ask-ex .chip-btn"); if (ex) { $("#ask-q").value = ex.textContent; return ask(ex.textContent); }
-    const rm = t.closest("[data-rm]"); if (rm) { S.watch = S.watch.filter((x) => x !== rm.dataset.rm); store.set("dd.watch", S.watch); renderWatchlist(); if (S.f.mine) renderFeed(); return; }
-    const cp = t.closest("#copy-cmd"); if (cp) return copyCmd();
-    const sb = t.closest(".seg-btn");
-    if (sb) { S.f[sb.dataset.f] = sb.dataset.v; $$(`.seg-btn[data-f="${sb.dataset.f}"]`).forEach((b) => b.setAttribute("aria-pressed", String(b === sb))); S.idFilter = null; return renderFeed(); }
-    const tg = t.closest(".tog");
-    if (tg) { const k = tg.dataset.t; S.f[k] = !S.f[k]; tg.setAttribute("aria-pressed", String(S.f[k])); S.idFilter = null; return renderFeed(); }
+    const wn = t.closest("[data-win]"); if (wn) { S.f.win = wn.dataset.win; S.idFilter = null; return renderFeed(); }
+    const sh = t.closest("#show-ids"); if (sh) { const o = $("#answer"); S.idFilter = { ids: JSON.parse(o.dataset.ids), label: o.dataset.label }; renderFeed(); $("#feed-title").scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+    const ex = t.closest("#ask-ex button"); if (ex) { $("#ask-q").value = ex.textContent; return ask(ex.textContent); }
+    if (t.closest("#copy-cmd")) return copyCmd();
+    const pl = t.closest(".pill");
+    if (pl) {
+      if (pl.dataset.f) { S.f[pl.dataset.f] = pl.dataset.v; $$(`.pill[data-f="${pl.dataset.f}"]`).forEach((b) => b.setAttribute("aria-pressed", String(b === pl))); }
+      else if (pl.dataset.t) { S.f[pl.dataset.t] = !S.f[pl.dataset.t]; pl.setAttribute("aria-pressed", String(S.f[pl.dataset.t])); }
+      S.idFilter = null; return renderFeed();
+    }
   });
 
   document.addEventListener("keydown", (e) => {
@@ -633,14 +548,7 @@ function wireStatic() {
     }
   });
 
-  $("#search").addEventListener("input", (e) => { S.f.q = e.target.value; S.idFilter = null; renderFeed(); });
   $("#ask").addEventListener("submit", (e) => { e.preventDefault(); const q = $("#ask-q").value.trim(); if (q.length >= 3) ask(q); });
-  $("#wl-form").addEventListener("submit", (e) => {
-    e.preventDefault();
-    const inp = $("#wl-in"), t = inp.value.trim().toUpperCase();
-    if (/^[A-Z]{1,5}(-[A-Z])?$/.test(t) && !S.watch.includes(t) && S.watch.length < 20) { S.watch.push(t); store.set("dd.watch", S.watch); renderWatchlist(); if (S.f.mine) renderFeed(); }
-    inp.value = "";
-  });
   $("#detail").addEventListener("input", (e) => {
     const id = e.target.id; if (!["tk-budget", "tk-slip"].includes(id)) return;
     const d = S.byId.get(S.sel); if (!d) return;
@@ -655,10 +563,9 @@ function wireStatic() {
 }
 
 function resetFilters() {
-  S.f = { win: "recent", chamber: "", side: "", verdict: "", rtoken: false, cluster: false, overlap: false, mine: false, q: "" };
-  S.idFilter = null; $("#search").value = "";
-  $$(".seg-btn").forEach((b) => b.setAttribute("aria-pressed", String(S.f[b.dataset.f] === b.dataset.v)));
-  $$(".tog").forEach((b) => b.setAttribute("aria-pressed", "false"));
+  S.f = { win: "recent", verdict: "", rtoken: false };
+  S.idFilter = null;
+  $$(".pill").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.f ? S.f[b.dataset.f] === b.dataset.v : false)));
   renderFeed();
 }
 

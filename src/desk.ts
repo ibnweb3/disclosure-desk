@@ -124,7 +124,7 @@ export function fallbackPlan(q: string, data: Disclosure[], watch: string[]): Pl
   if (/\b(bought|buy|buys|purchase|purchased|buying)\b/.test(ql)) p.side = "buy";
   if (/\b(sold|sell|sells|sale|selling)\b/.test(ql)) p.side = "sell";
   if (/priced.?in|already moved|too late/.test(ql)) p.verdicts.push("PRICED_IN");
-  if (/still open|open|not moved|hasn.?t moved/.test(ql)) p.verdicts.push("OPEN");
+  if (/still open|still early|open|not moved|hasn.?t moved/.test(ql)) p.verdicts.push("OPEN");
   if (/revers|against them|went down after/.test(ql)) p.verdicts.push("REVERSED");
   if (/\bsenat/.test(ql)) p.chamber = "senate";
   if (/\bhouse\b|\brepresentative/.test(ql)) p.chamber = "house";
@@ -133,7 +133,7 @@ export function fallbackPlan(q: string, data: Disclosure[], watch: string[]): Pl
   if (/independent/.test(ql)) p.party = "I";
   if (/cluster|several members|multiple members|multiple politicians/.test(ql)) p.flags.push("cluster");
   if (/committee|conflict|oversee|jurisdiction/.test(ql)) p.flags.push("overlap");
-  if (/\blate\b|overdue|45 day/.test(ql)) p.flags.push("late");
+  if (/(?<!too )\blate\b|overdue|45 day/.test(ql)) p.flags.push("late"); // "too late" is a verdict (priced in), not the late-filing flag
   if (/rtoken|24\/7|weekend|after.?hours|gapping|reopen|monday/.test(ql)) { p.rtokenOnly = true; if (/gap|reopen|monday|moving/.test(ql)) p.sort = "gap"; }
   if (/\bmy\b|watchlist|holdings|portfolio/.test(ql) && watch.length) { p.mine = true; }
   if (/biggest|largest|most money/.test(ql)) p.sort = "amount";
@@ -151,7 +151,7 @@ export async function llmPlan(env: AppEnv, q: string, watch: string[]): Promise<
   const today = new Date().toISOString().slice(0, 10);
   const system = `You translate a trader's question about US Congress stock-trade disclosures into ONE JSON filter object. Output only the JSON, no prose, no markdown.
 Optional fields: tickers (string[] of uppercase US tickers), members (string[] surnames or full names), sectors (subset of ${SECTORS.join("|")}), side ("buy"|"sell"), verdicts (subset of OPEN|PRICED_IN|REVERSED), chamber ("house"|"senate"), party ("D"|"R"|"I": Democrats, Republicans, independents), states (string[] of two-letter US state codes for the member's state), sinceDays (int, disclosed within the last N days), flags (subset of cluster|overlap|late), rtokenOnly (bool), includeStale (bool), mine (bool: the question is about my watchlist/holdings), sort ("recent"|"amount"|"missed"|"gap"), limit (1-12).
-Meanings: verdict OPEN = the price has not yet moved in the member's favour since their trade; PRICED_IN = it already has; REVERSED = it moved against them. "gapping", "moving now", "reopen", "weekend" => rtokenOnly true and sort "gap". Today is ${today}.`;
+Meanings: verdict OPEN = the price has not yet moved in the member's favour since their trade (users may say "still early" or "still open"); PRICED_IN = it already has (users may say "too late" or "already moved"; this is NOT the "late" filing flag); REVERSED = it moved against them ("went the other way"). "gapping", "moving now", "reopen", "weekend" => rtokenOnly true and sort "gap". Today is ${today}.`;
   const r = await chat(env, [{ role: "system", content: system }, { role: "user", content: `Question: ${q}${watch.length ? `\nMy watchlist: ${watch.join(", ")}` : ""}` }], { maxTokens: 220, temperature: 0 });
   const m = /\{[\s\S]*\}/.exec(r.text);
   if (!m) throw new Error("planner returned no json");
