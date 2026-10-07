@@ -4,13 +4,13 @@
 It reads every House PDF and Senate report, tells you what the market has *already* done since each trade, and, when US stocks are closed, shows where the disclosed names are trading right now as rTokens and drafts a paper-trading ticket. A human makes the call.
 
 > Bitget AI Hackathon S2 · Track: **AI Trading Desk** · Sub-theme: *Information Extraction & Signal Generation*
-> **Live demo (no login): https://disclosure-desk.ibnweb3lab.workers.dev** · Proof page: [/#proof](https://disclosure-desk.ibnweb3lab.workers.dev/#proof) · Method: [/#method](https://disclosure-desk.ibnweb3lab.workers.dev/#method)
+> **Live demo (no login): https://disclosure-desk.ibnweb3lab.workers.dev** · Proof page: [/#proof](https://disclosure-desk.ibnweb3lab.workers.dev/#proof) · How it works: [/#method](https://disclosure-desk.ibnweb3lab.workers.dev/#method)
 
 ## The idea in 10 seconds
 
 Congress files late (median **30 days** after the trade), and a follower who acts on a filing arrives after the move. We measured whether following disclosures pays: **it doesn't, reliably** (see [Proof](#what-the-data-say)). So this is not a signal seller. It is an honest desk that answers three questions a Congress-follower actually has:
 
-1. **What did they trade, and is it already priced in?** Per-trade accounting versus SPY, in units of the stock's own noise.
+1. **What did they trade, and is it already too late to follow?** Each trade gets one plain label (*Still early*, *Too late*, *Went the other way*) from per-trade accounting versus SPY, in units of the stock's own noise.
 2. **Is there context?** Multiple members on the same name, a committee that oversees the company's sector, a filing past the 45-day STOCK Act limit.
 3. **What can I do about it right now?** Congress files at any hour; stocks reprice only at the open. Bitget rTokens trade continuously, so when equities are closed the desk ranks the disclosed names by how far their rToken has already moved from the last equity close, then builds a **paper-trading ticket** (`bgc --paper-trading … --dry-run`) behind a deterministic risk gate.
 
@@ -20,15 +20,15 @@ Congress files late (median **30 days** after the trade), and a follower who act
 |---|---|
 | `pipeline/` (Python) | House Clerk PDFs → rows (99.7 % of declared transaction rows parsed); Senate reports via a public mirror; Yahoo prices; sectors; members and committees; verdicts; validation study |
 | `src/` (Cloudflare Worker, TypeScript) | Live rToken quotes and the 2,800-token rToken universe (via Bitget's official agent MCP), market session, the natural-language desk, a 15-minute cron that records rToken-vs-equity snapshots |
-| `public/` (static, no build step) | The desk: feed, filters, per-trade chart, 24/7 panel, ticket, Proof and Method tabs |
+| `public/` (static, no build step) | The desk: one question box, a filterable list, a details drawer (chart, Bitget price, practice order), and the How it works and Proof tabs |
 
 ### The verdict (deterministic, no LLM)
 
 For a trade in direction *d* on *t₀*, disclosed *t₁*, with `excess` = stock return − SPY return:
 
 - `missed = d × excess(t₀ → now)`; `z = missed / (σ·√h)` with σ the stock's own 60-day pre-trade daily excess-return noise and *h* the trading days elapsed.
-- **Priced in** if z ≥ 1 and missed ≥ 1 %; **Reversed** if z ≤ −1 and missed ≤ −1 %; else **Open**.
-- Options are **Unclear** (the filing doesn't say call or put); trades dated after their own filing are flagged as typos (we found one: a House filing dated 12/26/2026 inside a report filed 2/9/2026).
+- **Too late** (internally `PRICED_IN`) if z ≥ 1 and missed ≥ 1 %; **Went the other way** (`REVERSED`) if z ≤ −1 and missed ≤ −1 %; else **Still early** (`OPEN`).
+- Options are **Can't tell** (`UNCLEAR`: the filing doesn't say call or put); trades dated after their own filing are flagged as typos (we found one: a House filing dated 12/26/2026 inside a report filed 2/9/2026).
 
 ### The role of the language model (Qwen)
 
@@ -40,8 +40,8 @@ Default model `@cf/qwen/qwen3-30b-a3b-fp8` on Cloudflare Workers AI (fits the fr
 ## A complete research task (question → insight → action)
 
 1. **Ask**: "Which disclosed stocks are gapping as rTokens right now?" The planner turns it into a filter (rToken-tradable, sort by gap); the desk pulls live Bitget quotes for the matching names and ranks them by distance from the last stock price.
-2. **Read**: open one, e.g. Rep. Kevin Hern's sale of **HD**. He sold on Sep 14 near $310.87 and it was disclosed 11 days later (Sep 25, about $293.20). Versus SPY the stock moved **+8.6 % in his direction** (+7.3 % before the filing was public, +1.4 % since), which is **1.6σ** of HD's own typical noise over 12 trading days: **Priced in**. Someone copying today is paying for a move he already captured. The panel also shows the price chart with his trade, the disclosure, and today; the source filing is one click away.
-3. **Act (or don't)**: the 24/7 panel shows `rHDUSDT` within a few basis points of the stock at a tight spread, and the ticket builds the paper-trading command with Bitget's own precision and minimums behind risk gates (one of them warns: "same side as the member, but their move is already priced in"). Nothing is sent; you paste it into Bitget's demo environment.
+2. **Read**: open one, e.g. Rep. Kevin Hern's sale of **HD**. He sold on Sep 14 near $310.87 and it was disclosed 11 days later (Sep 25, about $293.20). Versus SPY the stock moved **+8.6 % in his direction** (+7.3 % before the filing was public, +1.4 % since), which is **1.6σ** of HD's own typical noise over 12 trading days: **Too late**. Someone copying today is paying for a move he already captured. The panel also shows the price chart with his trade, the disclosure, and today; the source filing is one click away.
+3. **Act (or don't)**: the 24/7 panel shows `rHDUSDT` within a few basis points of the stock at a tight spread, and the ticket builds the paper-trading command with Bitget's own precision and minimums behind risk gates (one of them warns: "same side as the member, but their move has already happened"). Nothing is sent; you paste it into Bitget's demo environment.
 
 ## What the data say
 
@@ -49,14 +49,14 @@ Computed by `pipeline/analysis.py` on every filing we hold (Senate 2023-26 via m
 
 | | mean excess vs SPY | t (naive) | t (clustered) |
 |---|---|---|---|
-| Follow a disclosure, 5 trading days | +0.22 % | 2.96 | **0.67** |
-| Follow a disclosure, 20 trading days | +0.18 % | 1.18 | **1.94** |
-| Open − Priced in, 5 days | +0.18 pp | | 0.52 |
-| Open − Priced in, 20 days | −0.39 pp | | −0.61 |
+| Follow a disclosure, 5 trading days | +0.22 % | 2.97 | **0.71** |
+| Follow a disclosure, 20 trading days | +0.21 % | 1.37 | **2.02** (borderline, not robust to the caveats below) |
+| Still early − Too late, 5 days | +0.18 pp | | 0.52 |
+| Still early − Too late, 20 days | −0.40 pp | | −0.63 |
 
-(5,462 trades from 563 filings.) No reliable edge, and the verdicts don't forecast either, so the desk labels them as *accounting of what a follower has missed*, never as predictions. The naive t-stat of 2.96 is the trap most trackers fall into: trades inside one filing move together.
+(5-day row: 5,469 trades from 565 filings; figures as of 2026-10-06 and recomputed on every refresh.) No reliable edge, and the labels don't forecast either, so the desk presents them as an *accounting of what a follower has missed*, never as predictions. The naive t-stat of 2.97 is the trap most trackers fall into: trades inside one filing move together.
 
-The live **24/7 study** on the Proof tab tests whether a weekend rToken gap anticipates Monday's open; it fills in as real weekends are recorded.
+The **24/7 study** on the Proof tab is built from a recorder that stores rToken and equity prices every 15 minutes. What it observed while Bitget's feed was up (Sep 30 to Oct 3, 260 snapshots): the median rToken-vs-stock gap was **1.3 bps while US stocks trade and 22.4 bps while they are closed**, with spreads of 5.2 bps versus 101 bps. The planned Friday-close to Monday-open test could **not** be completed: Bitget's agent MCP started returning "503 Service Temporarily Unavailable" on Oct 3 and had not recovered by Oct 6, so no Monday data exists. We make no claim about whether weekend gaps predict the open, and the desk shows no rToken price (rather than a stale one) while the feed is down.
 
 ## Run it
 
@@ -66,7 +66,7 @@ python -m pip install -r pipeline/requirements.txt
 
 python pipeline/house_fetch.py 2026     # download House PTR PDFs (cached)
 python pipeline/analysis.py             # build public/data/* (feed, charts, meta) + proof.json
-npm test                                # 5 pipeline tests + weekend-study test
+npm test                                # 5 pipeline tests + weekend-study test + summary-grounding test
 npm run dev                             # http://localhost:8787 (mock rTokens; no Cloudflare account touched)
 ```
 
@@ -89,7 +89,7 @@ npx wrangler deploy        # static assets + Worker + cron + KV (id auto-provisi
 
 ## Known limitations (we'd rather you read them here)
 
-- **Scanned filings are not read yet**: 47 of 403 House filings and 59 of 544 Senate reports are images with no text layer.
+- **Scanned filings are not read yet**: 47 of 409 House filings and 59 of 545 Senate reports are images with no text layer.
 - The committee-overlap flag uses a coarse committee→sector map: context, not an accusation.
 - The study samples are small and prices exist only for currently listed tickers (survivorship bias); no trading costs are modelled.
 - The desk never holds keys and never places orders; tickets are for Bitget's demo environment via the official `bgc` CLI.
