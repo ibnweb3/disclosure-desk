@@ -26,6 +26,20 @@ assert.equal(summaryIsGrounded("Three of them are already priced in.", payload, 
 assert.equal(summaryIsGrounded("A dozen names moved.", payload, 2), false);
 assert.ok(summaryIsGrounded("One name is priced in, the rest are open.", payload, 2));
 
+// guesses about motive or interest are rejected (the live Qwen once wrote exactly this)
+assert.equal(summaryIsGrounded("John Boozman bought three stocks, all with open verdicts. These trades remain unfulfilled, showing potential interest.", payload, 2), false);
+assert.equal(summaryIsGrounded("The purchase suggests a bullish view.", payload, 2), false);
+assert.equal(summaryIsGrounded("A good opportunity given the +8.6% move.", payload, 2), false);
+assert.equal(summaryIsGrounded("It was an insider-style trade.", payload, 2), false);
+
+// internal keys and the old "open verdict" wording must not reach users
+assert.equal(summaryIsGrounded("This one is PRICED_IN at +8.6%.", payload, 2), false);
+assert.equal(summaryIsGrounded("Most have open verdicts.", payload, 2), false);
+
+// plain labels are fine
+assert.ok(summaryIsGrounded("Most of these are Still early; one is Too late (+8.6% since the trade).", payload, 2));
+assert.ok(summaryIsGrounded("The rToken sits -1.32% from the stock, so the market is already pricing it ahead of the open.", payload, 2));
+
 // text with no numbers at all is fine
 assert.ok(summaryIsGrounded("One name is already priced in and the other is still open.", payload, 2));
 console.log("ok grounding.test.mjs");

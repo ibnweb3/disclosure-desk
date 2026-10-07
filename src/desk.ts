@@ -196,6 +196,9 @@ export function runPlan(plan: Plan, data: Disclosure[], watch: string[], rtokens
 const pct = (x: number | undefined | null, d = 1) => (x === undefined || x === null ? "n/a" : `${x >= 0 ? "+" : ""}${(x * 100).toFixed(d)}%`);
 const usd = (n: number | null) => (n === null ? "?" : n >= 1e6 ? `$${(n / 1e6).toFixed(n % 1e6 ? 1 : 0)}M` : `$${Math.round(n / 1000)}K`);
 
+/** The words users see in the UI; the model is given these instead of the pipeline's internal keys. */
+const PLAIN_VERDICT: Record<string, string> = { OPEN: "Still early", PRICED_IN: "Too late", REVERSED: "Went the other way", UNCLEAR: "Can't tell", INVALID: "Date error" };
+
 export function compact(d: Disclosure, q?: Quote) {
   const notes: string[] = [];
   if (d.flags.cluster) notes.push(`cluster: ${d.flags.cluster + 1} members ${d.side === "buy" ? "bought" : "sold"} it within 30 days`);
@@ -206,7 +209,7 @@ export function compact(d: Disclosure, q?: Quote) {
     id: d.id, member: `${d.member}${d.party ? ` (${d.party}-${d.state})` : ""}`, chamber: d.chamber,
     action: `${d.side} ${d.ticker}${d.company ? ` (${d.company})` : ""}`, sector: d.sector,
     size: `${usd(d.amountLo)}-${usd(d.amountHi)}${d.lots > 1 ? ` (summed over ${d.lots} lots)` : ""}`, traded: d.tradeDate, filed: d.filedDate,
-    verdict: d.a.verdict, verdictWhy: d.a.why,
+    verdict: PLAIN_VERDICT[d.a.verdict] ?? d.a.verdict, verdictWhy: d.a.why,
     movedBeforeFiling: pct(d.a.rBefore), movedSinceFiling: pct(d.a.rSince), missedSinceTrade: pct(d.a.rTotal),
     notes,
     rtoken: q?.rtoken ? { symbol: q.rtoken.symbol, price: q.rtoken.mid ?? q.rtoken.last, vsLastEquityClose: pct(q.gap, 2), spreadBps: q.spreadBps === null ? null : Math.round(q.spreadBps) } : null,
@@ -230,13 +233,15 @@ Write a read of the disclosures below for a retail trader: 2 or 3 sentences, at 
 Rules:
 - Use only facts and numbers that appear in the JSON rows. Do not round or compute new numbers.
 - Do NOT list the rows one by one; they are listed separately below your text. Do not add citations. Do not state how many rows there are and do not use number words (one, two, three...) for quantities: the count is shown separately. Say "these names" or "most of them" instead.
-- Say what stands out: how many are already priced in vs still open, any cluster, committee overlap or late filing, and what the rToken gap shows if present.
+- Say what stands out: which are "Too late" (the stock already moved their way) versus "Still early", any cluster, committee overlap or late filing, and what the rToken gap shows if present.
+- Each row has a "verdict" of exactly "Still early", "Too late", "Went the other way" or "Can't tell". Use only those words for verdicts; never write "open", "priced in", "reversed" or "unclear" as a verdict name.
+- Describe only what the filings and prices show: who traded what, when it became public, and what the stock did since. Do NOT guess why a member traded, what they intend, or what anyone is interested in. Do NOT use the words potential, opportunity, likely, suggests, signal, interest, intent or unfulfilled.
 - Never predict prices and never tell the user to buy or sell.
 - ${market.open ? "US equities are open now." : "US equities are CLOSED now, so the rToken price is the only live reference."}${mock ? " The rToken quotes are MOCK development data; say so." : ""}`;
   let note = "no attempt";
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const nudge = attempt ? String.fromCharCode(10) + "Your previous text was rejected because it used a count or a number that is not in the rows. Rewrite it with no counts, no number words and no figures except ones copied from the rows." : "";
+      const nudge = attempt ? String.fromCharCode(10) + "Your previous text was rejected. Rewrite it with no counts, no number words, no figures except ones copied from the rows, no guesses about motives or interest, and only the verdict words Still early, Too late, Went the other way or Can't tell." : "";
       const r = await chat(env, [{ role: "system", content: system }, { role: "user", content: `Question: ${q}` + String.fromCharCode(10) + `Rows: ${JSON.stringify(payload)}` + nudge }], { maxTokens: 300, temperature: attempt ? 0 : 0.2 });
       const text = r.text.replace(/\[[HS]-[A-Za-z0-9-]+\]/g, "").trim();
       if (!text) { note = "empty summary"; continue; }
