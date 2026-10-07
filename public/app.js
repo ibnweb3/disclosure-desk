@@ -52,6 +52,41 @@ async function getJSON(url, opts) {
   return r.json();
 }
 
+/** The row of small boxes at the top of the hero: counts straight from the data, each one a shortcut into the list. */
+function renderStrip() {
+  const recent = S.data.filter((d) => !d.stale);
+  const n = (v) => recent.filter((d) => d.a.verdict === v).length;
+  const onBitget = S.rt.ok ? new Set(recent.filter((d) => S.rt.set.has(d.ticker)).map((d) => d.ticker)).size : null;
+  const lag = median(recent.map((d) => d.lagDays));
+  const box = (attrs, l, num, c) => `<li><${attrs.startsWith("data") ? `button type="button" ${attrs}` : "div"} class="sbox"><span class="l">${l}</span><span class="n">${num}</span><span class="c">${c}</span></${attrs.startsWith("data") ? "button" : "div"}></li>`;
+  $("#strip").innerHTML = [
+    box('data-strip="all"', "Recent trades", recent.length.toLocaleString(), "last 60 days"),
+    box('data-f="verdict" data-v="OPEN"', "Still early", n("OPEN").toLocaleString(), "not priced in yet"),
+    box('data-f="verdict" data-v="PRICED_IN"', "Too late", n("PRICED_IN").toLocaleString(), "already moved"),
+    box('data-f="verdict" data-v="REVERSED"', "Went the other way", n("REVERSED").toLocaleString(), "moved against them"),
+    box('data-strip="bitget"', "On Bitget 24/7", onBitget == null ? "n/a" : onBitget.toLocaleString(), "stocks with a token"),
+    box("", "Typical delay", lag == null ? "n/a" : `${Math.round(lag)} days`, "trade to public"),
+  ].join("");
+}
+
+/** The dark card: one real, current trade that shows the whole idea at a glance. */
+function renderExample() {
+  const el = $("#example");
+  const pool = S.data.filter((d) => !d.stale && d.a.verdict === "PRICED_IN" && d.a.rBefore != null && d.a.rSince != null);
+  const d = pool.sort((x, y) => y.a.rTotal - x.a.rTotal)[0] || S.data.find((x) => !x.stale);
+  if (!d) { el.hidden = true; return; }
+  const a = d.a, b = Math.abs(a.rBefore ?? 0), s = Math.abs(a.rSince ?? 0), tot = b + s || 1;
+  const scored = a.rTotal != null && ["OPEN", "PRICED_IN", "REVERSED"].includes(a.verdict);
+  el.innerHTML = `<p class="eyebrow">A real example</p>
+    <h2>${esc(d.member)} ${d.side === "buy" ? "bought" : "sold"} ${esc(d.ticker)}</h2>
+    <p class="when">Traded ${dShort(d.tradeDate)} · made public ${dShort(d.filedDate)}</p>
+    <div class="verdict v-${a.verdict}"><i aria-hidden="true"></i>${VERDICT[a.verdict]}</div>
+    <p class="says">${scored ? `The stock ${moveText(a)}.` : esc(a.why || "")}</p>
+    ${scored ? `<div class="bar" role="img" aria-label="Of the move, ${pct(a.rBefore)} came before the filing was public and ${pct(a.rSince)} after"><b class="before" style="width:${(100 * b / tot).toFixed(1)}%"></b><b class="since" style="width:${(100 * s / tot).toFixed(1)}%"></b></div>
+    <div class="bar-l"><span>Before it was public ${pct(a.rBefore)}</span><span>After ${pct(a.rSince)}</span></div>` : ""}
+    <button class="btn-cta" type="button" data-open="${esc(d.id)}">See this trade</button>`;
+}
+
 async function boot() {
   wireStatic();
   try {
@@ -62,8 +97,11 @@ async function boot() {
     return;
   }
   renderExamples();
+  renderStrip();
+  renderExample();
   renderFeed();
   await refreshMarket();
+  renderStrip();
   renderFeed(true); // the first paint ran before the rToken list arrived; redraw so "Bitget 24/7" tags and the filter work even if live quotes fail
   await refreshGapWatch();
   setInterval(() => { if (!document.hidden) tick(); }, 30000);
@@ -520,6 +558,18 @@ function wireStatic() {
   document.addEventListener("click", (e) => {
     const t = e.target;
     if (t.id === "scrim") return closeDetail();
+    const gt = t.closest("[data-goto]"); if (gt) return setView(gt.dataset.goto);
+    if (t.closest("#cta-ask")) { const q = $("#ask-q"); q.scrollIntoView({ behavior: "smooth", block: "center" }); q.focus({ preventScroll: true }); return; }
+    const op = t.closest("[data-open]"); if (op) return openById(op.dataset.open, op);
+    const sb = t.closest(".sbox[data-f], .sbox[data-strip]");
+    if (sb) {
+      if (sb.dataset.f) S.f[sb.dataset.f] = sb.dataset.v;
+      else if (sb.dataset.strip === "all") S.f = { win: "recent", verdict: "", rtoken: false };
+      else if (sb.dataset.strip === "bitget") S.f.rtoken = true;
+      S.idFilter = null;
+      $$(".pill").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.f ? S.f[b.dataset.f] === b.dataset.v : !!S.f[b.dataset.t])));
+      renderFeed(); $("#feed-title").scrollIntoView({ behavior: "smooth", block: "start" }); return;
+    }
     const row = t.closest(".row"); if (row) return openById(row.dataset.id, row);
     const gw = t.closest(".gw-btn");
     if (gw) { const d = S.data.find((x) => x.ticker === gw.dataset.tk && !x.stale) || S.data.find((x) => x.ticker === gw.dataset.tk); if (d) { S.idFilter = null; openById(d.id, gw); } return; }

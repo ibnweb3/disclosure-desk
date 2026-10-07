@@ -6,6 +6,7 @@
 <title>Disclosure Desk</title>
 <meta name="description" content="Congress reports its stock trades weeks late. Disclosure Desk shows, for each one, whether the stock has already moved, so you know if it is too late to follow.">
 <meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#4b2bb8">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/styles.css">
 <script>
@@ -19,8 +20,7 @@
 <header class="top">
   <div class="top-in">
     <a class="brand" href="/" aria-label="Disclosure Desk home">
-      <svg class="logo" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="2.5" y="3.5" width="19" height="17" rx="4.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M6.5 15l3.7-3.9 2.8 2.7 4.6-5.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <span class="brand-name">Disclosure Desk</span>
+      <span class="brand-name">Disclosure.</span><span class="brand-box">DESK</span>
     </a>
     <nav class="tabs" aria-label="Sections">
       <button class="tab" data-view="desk" aria-current="page">Desk</button>
@@ -41,46 +41,64 @@
   <section id="view-desk" class="view">
 
     <section class="hero" aria-labelledby="hero-title">
-      <h1 id="hero-title">Congress reports its stock trades weeks late. Is it too late to follow?</h1>
-      <p class="hero-sub">Members of Congress must publish what they trade, but only after the fact. For every reported trade we show what the stock has done since, so you can tell which ones are still early and which the market has already priced in.</p>
-
-      <form id="ask" class="ask" autocomplete="off">
-        <label for="ask-q" class="sr">Ask a question</label>
-        <div class="ask-box">
-          <input id="ask-q" name="q" type="text" inputmode="text" maxlength="300" required spellcheck="false" autocomplete="off" placeholder="Ask a question about these trades…">
-          <button id="ask-go" class="btn btn-primary" type="submit">Ask</button>
+      <div class="hero-bg" aria-hidden="true"></div>
+      <div class="hero-in">
+        <ul id="strip" class="strip" aria-label="At a glance"></ul>
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <h1 id="hero-title">Is it too late to follow Congress's trades?</h1>
+            <p class="hero-sub">Lawmakers report their stock trades weeks late. See which ones the market has already priced in.</p>
+            <div class="hero-cta">
+              <button class="btn-cta" type="button" id="cta-ask">Ask the desk</button>
+              <button class="btn-ghost" type="button" data-goto="method">How it works</button>
+            </div>
+          </div>
+          <aside id="example" class="example" aria-label="A real example"></aside>
         </div>
-        <p class="examples" id="ask-ex"><span class="muted">Try:</span></p>
-      </form>
-      <div id="answer" class="answer" hidden aria-live="polite"></div>
-    </section>
-
-    <section id="gapwatch" class="gapwatch" aria-labelledby="gw-title" hidden>
-      <h2 id="gw-title">Moving overnight on Bitget</h2>
-      <p id="gw-sub" class="muted"></p>
-      <ul id="gw-list" class="gw-list" aria-live="polite"></ul>
-    </section>
-
-    <section class="feed-sec" aria-labelledby="feed-title">
-      <h2 id="feed-title">Recent trades by members of Congress</h2>
-      <div class="pills" role="group" aria-label="Filter">
-        <button class="pill" data-f="verdict" data-v="" aria-pressed="true">All</button>
-        <button class="pill" data-f="verdict" data-v="OPEN" aria-pressed="false"><i class="vd v-OPEN" aria-hidden="true"></i>Still early</button>
-        <button class="pill" data-f="verdict" data-v="PRICED_IN" aria-pressed="false"><i class="vd v-PRICED_IN" aria-hidden="true"></i>Too late</button>
-        <button class="pill" data-f="verdict" data-v="REVERSED" aria-pressed="false"><i class="vd v-REVERSED" aria-hidden="true"></i>Went the other way</button>
-        <button class="pill pill-t" data-t="rtoken" aria-pressed="false">On Bitget 24/7</button>
       </div>
-      <p id="vhelp" class="vhelp"></p>
-      <p id="count" class="count" role="status" aria-live="polite"></p>
-      <ul id="feed" class="feed" aria-label="Trades"></ul>
     </section>
+
+    <div class="content">
+      <section class="ask-sec" aria-labelledby="ask-title">
+        <h2 id="ask-title">Ask the desk</h2>
+        <form id="ask" class="ask" autocomplete="off">
+          <label for="ask-q" class="sr">Ask a question</label>
+          <div class="ask-box">
+            <input id="ask-q" name="q" type="text" inputmode="text" maxlength="300" required spellcheck="false" autocomplete="off" placeholder="Ask a question about these trades…">
+            <button id="ask-go" class="btn btn-primary" type="submit">Ask</button>
+          </div>
+          <p class="examples" id="ask-ex"><span class="muted">Try:</span></p>
+        </form>
+        <div id="answer" class="answer" hidden aria-live="polite"></div>
+      </section>
+
+      <section id="gapwatch" class="gapwatch" aria-labelledby="gw-title" hidden>
+        <h2 id="gw-title">Moving overnight on Bitget</h2>
+        <p id="gw-sub" class="muted"></p>
+        <ul id="gw-list" class="gw-list" aria-live="polite"></ul>
+      </section>
+
+      <section class="feed-sec" aria-labelledby="feed-title">
+        <h2 id="feed-title">Recent trades by members of Congress</h2>
+        <div class="pills" role="group" aria-label="Filter">
+          <button class="pill" data-f="verdict" data-v="" aria-pressed="true">All</button>
+          <button class="pill" data-f="verdict" data-v="OPEN" aria-pressed="false"><i class="vd v-OPEN" aria-hidden="true"></i>Still early</button>
+          <button class="pill" data-f="verdict" data-v="PRICED_IN" aria-pressed="false"><i class="vd v-PRICED_IN" aria-hidden="true"></i>Too late</button>
+          <button class="pill" data-f="verdict" data-v="REVERSED" aria-pressed="false"><i class="vd v-REVERSED" aria-hidden="true"></i>Went the other way</button>
+          <button class="pill pill-t" data-t="rtoken" aria-pressed="false">On Bitget 24/7</button>
+        </div>
+        <p id="vhelp" class="vhelp"></p>
+        <p id="count" class="count" role="status" aria-live="polite"></p>
+        <ul id="feed" class="feed" aria-label="Trades"></ul>
+      </section>
+    </div>
   </section>
 
   <!-- ============ METHOD ============ -->
-  <section id="view-method" class="view" hidden></section>
+  <section id="view-method" class="view content" hidden></section>
 
   <!-- ============ PROOF ============ -->
-  <section id="view-proof" class="view" hidden></section>
+  <section id="view-proof" class="view content" hidden></section>
 </main>
 
 <div id="scrim" class="scrim" hidden></div>
