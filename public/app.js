@@ -392,13 +392,14 @@ function openById(id, opener) {
 }
 
 // ---------- ask ----------
-const EXAMPLES = ["What did senators buy this week that's still open?", "Which recent trades are already too late to follow?", "Any tech trades by members on the committee that oversees tech?"];
-function renderExamples() { $("#ask-ex").innerHTML = `<span class="muted">Try:</span> ${EXAMPLES.map((e) => `<button type="button">${esc(e)}</button>`).join("")}`; }
+const EXAMPLES = ["What did senators buy this week that's still early?", "Which recent trades are already too late to follow?", "Any tech trades by members on the tech committee?"];
+function renderExamples() { $("#ask-ex").innerHTML = `<span>Try:</span> ${EXAMPLES.map((e) => `<button type="button">${esc(e)}</button>`).join("")}`; }
 
 async function ask(q) {
   const go = $("#ask-go"), out = $("#answer");
   go.disabled = true; out.hidden = false;
   out.innerHTML = `<span class="spin" aria-hidden="true"></span>Reading the filings…`;
+  out.scrollIntoView({ behavior: "smooth", block: "nearest" }); // the answer opens right under the hero search, so there is no scrolling to find it
   const ac = new AbortController(); const to = setTimeout(() => ac.abort(), 40000);
   try {
     const res = await fetch("/api/ask", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ q }), signal: ac.signal });
@@ -410,6 +411,7 @@ async function ask(q) {
       ${j.ids.length ? `<button class="btn" type="button" id="show-ids">Show these ${j.ids.length} in the list</button>` : "<span>No match</span>"}
       <span>${j.mode === "llm" ? `Summary written by an AI model (${esc((j.model || "").split("/").pop())}) from the matching filings. The list's numbers are computed, not generated.` : "No AI summary this time; these are the computed numbers."}</span></div>`;
     out.dataset.ids = JSON.stringify(j.ids); out.dataset.label = label;
+    out.scrollIntoView({ behavior: "smooth", block: "nearest" });
     if (j.mock) S.rt.mock = true;
   } catch (e) {
     out.innerHTML = `<p>${e.name === "AbortError" ? "That took too long. Try a narrower question." : "Could not reach the desk. Check your connection and retry."}</p>`;
@@ -559,7 +561,6 @@ function wireStatic() {
     const t = e.target;
     if (t.id === "scrim") return closeDetail();
     const gt = t.closest("[data-goto]"); if (gt) return setView(gt.dataset.goto);
-    if (t.closest("#cta-ask")) { const q = $("#ask-q"); q.scrollIntoView({ behavior: "smooth", block: "center" }); q.focus({ preventScroll: true }); return; }
     const op = t.closest("[data-open]"); if (op) return openById(op.dataset.open, op);
     const sb = t.closest(".sbox[data-f], .sbox[data-strip]");
     if (sb) {

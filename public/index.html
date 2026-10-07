@@ -48,30 +48,22 @@
           <div class="hero-copy">
             <h1 id="hero-title">Is it too late to follow Congress's trades?</h1>
             <p class="hero-sub">Lawmakers report their stock trades weeks late. See which ones the market has already priced in.</p>
-            <div class="hero-cta">
-              <button class="btn-cta" type="button" id="cta-ask">Ask the desk</button>
-              <button class="btn-ghost" type="button" data-goto="method">How it works</button>
-            </div>
+            <form id="ask" class="ask" autocomplete="off">
+              <label for="ask-q" class="sr">Ask the desk a question</label>
+              <div class="ask-box">
+                <input id="ask-q" name="q" type="text" inputmode="text" maxlength="300" required spellcheck="false" autocomplete="off" placeholder="Ask the desk about any trade…">
+                <button id="ask-go" class="btn-cta" type="submit">Ask</button>
+              </div>
+              <p class="examples" id="ask-ex"><span>Try:</span></p>
+            </form>
           </div>
           <aside id="example" class="example" aria-label="A real example"></aside>
         </div>
+        <div id="answer" class="answer" hidden aria-live="polite"></div>
       </div>
     </section>
 
     <div class="content">
-      <section class="ask-sec" aria-labelledby="ask-title">
-        <h2 id="ask-title">Ask the desk</h2>
-        <form id="ask" class="ask" autocomplete="off">
-          <label for="ask-q" class="sr">Ask a question</label>
-          <div class="ask-box">
-            <input id="ask-q" name="q" type="text" inputmode="text" maxlength="300" required spellcheck="false" autocomplete="off" placeholder="Ask a question about these trades…">
-            <button id="ask-go" class="btn btn-primary" type="submit">Ask</button>
-          </div>
-          <p class="examples" id="ask-ex"><span class="muted">Try:</span></p>
-        </form>
-        <div id="answer" class="answer" hidden aria-live="polite"></div>
-      </section>
-
       <section id="gapwatch" class="gapwatch" aria-labelledby="gw-title" hidden>
         <h2 id="gw-title">Moving overnight on Bitget</h2>
         <p id="gw-sub" class="muted"></p>
@@ -105,7 +97,7 @@
 <aside id="detail" class="detail" aria-label="Trade details" hidden></aside>
 
 <footer class="foot">
-  <p>A research tool, not financial advice. What we show describes what already happened; it is not a forecast. Data: House Clerk and Senate disclosures, Yahoo Finance prices, Bitget for token prices. Used for non-commercial research (5&nbsp;U.S.C. §13107). <a href="https://github.com/ibnweb3/disclosure-desk" rel="noopener noreferrer" target="_blank">Code</a></p>
+  <p>A research tool, not financial advice. What we show describes what already happened; it is not a forecast. Data: House Clerk and Senate disclosures, Yahoo Finance prices, Bitget for token prices. Used for non-commercial research (5&nbsp;U.S.C. §13107). Header photo: Architect of the Capitol (public domain). <a href="https://github.com/ibnweb3/disclosure-desk" rel="noopener noreferrer" target="_blank">Code</a></p>
 </footer>
 
 <script type="module" src="/app.js"></script>

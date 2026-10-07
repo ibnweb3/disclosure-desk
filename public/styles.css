@@ -99,7 +99,12 @@ input:focus-visible, select:focus-visible { box-shadow: var(--ring); }
 
 /* ---------- hero ---------- */
 .hero { position: relative; overflow: hidden; color: #fff; background: linear-gradient(118deg, #6b2bdb 0%, #4a3ac9 48%, #2a46b6 100%); }
-.hero-bg { position: absolute; inset: 0; background: url("/hero-bg.svg") center bottom / cover no-repeat; pointer-events: none; }
+/* top to bottom: the price line, a brand-colour wash so the text stays readable, then the real photo (US Capitol at dusk, public domain) */
+.hero-bg { position: absolute; inset: 0; pointer-events: none;
+  background:
+    url("/hero-line.svg") center bottom / cover no-repeat,
+    linear-gradient(100deg, rgba(86, 28, 196, .9) 0%, rgba(66, 48, 196, .78) 42%, rgba(38, 62, 176, .5) 100%),
+    url("/hero.jpg") 50% 24% / cover no-repeat; }
 .hero-in { position: relative; max-width: 1120px; margin: 0 auto; padding: 28px max(20px, env(safe-area-inset-left)) 72px; }
 .strip { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border: 1px dashed rgba(255, 255, 255, .3); }
 .strip li + li { border-left: 1px dashed rgba(255, 255, 255, .3); }
@@ -136,12 +141,19 @@ button.sbox { transition: background-color .15s; }
 .bar .since { background: #fff; }
 .bar-l { display: flex; justify-content: space-between; gap: 12px; font-size: .78rem; color: rgba(255, 255, 255, .66); }
 .example .btn-cta { margin-top: 22px; width: 100%; text-align: center; }
-.ask-sec { margin-bottom: 44px; }
-.ask-sec h2 { margin-bottom: 14px; }
-.ask { margin: 0; max-width: 680px; }
-.ask-box { display: flex; gap: 8px; }
-.examples { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 12px 0 0; font-size: .9rem; }
-.examples button { border: 0; background: none; padding: 0; color: var(--link); text-align: left; text-decoration: underline; text-underline-offset: 3px; }
+/* the ask bar lives in the hero: a white pill with the teal button inside it */
+.ask { margin: 30px 0 0; max-width: 560px; }
+.ask-box { display: flex; align-items: center; gap: 8px; background: #fff; border-radius: 999px; padding: 6px 6px 6px 22px; box-shadow: 0 12px 32px rgba(10, 8, 60, .35); }
+.ask-box:focus-within { box-shadow: 0 0 0 3px rgba(103, 214, 200, .85), 0 12px 32px rgba(10, 8, 60, .35); }
+.hero .ask-box input { border: 0; background: transparent; color: #1b1a17; padding: 10px 4px; box-shadow: none; border-radius: 0; }
+.hero .ask-box input::placeholder { color: #77746c; }
+.hero .ask-box input:focus-visible { box-shadow: none; }
+.ask-box .btn-cta { flex: none; padding: 11px 28px; }
+.btn-cta[disabled] { opacity: .6; cursor: progress; }
+.examples { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; margin: 14px 0 0; font-size: .88rem; color: rgba(255, 255, 255, .7); }
+.examples button { border: 0; background: none; padding: 0; color: #fff; text-align: left; text-decoration: underline; text-decoration-color: rgba(255, 255, 255, .45); text-underline-offset: 3px; }
+@media (hover: hover) { .examples button:hover { text-decoration-color: #fff; } }
+.hero .answer { margin: 36px 0 0; max-width: 860px; color: var(--text); box-shadow: 0 20px 50px rgba(10, 8, 60, .3); }
 .answer { border: 1px solid var(--line); background: var(--panel); border-radius: var(--radius); padding: 18px 20px; margin: 20px 0 0; max-width: 760px; }
 .answer .txt { white-space: pre-wrap; line-height: 1.65; }
 .answer .meta { font-size: .84rem; color: var(--faint); margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); display: flex; gap: 6px 14px; flex-wrap: wrap; align-items: center; }
@@ -266,6 +278,14 @@ table.t th { color: var(--muted); font-weight: 500; font-size: .8rem; background
 .stat .l { color: var(--muted); font-size: .86rem; }
 .foot { max-width: 960px; margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-left)) 40px; color: var(--faint); font-size: .82rem; }
 .foot p { border-top: 1px solid var(--line); padding-top: 18px; max-width: 60em; }
+
+/* wide screens: enlarge the photo and anchor it left so the dome sits in the gap between the headline and the card */
+@media (min-width: 1000px) {
+  .hero-bg { background:
+    url("/hero-line.svg") center bottom / cover no-repeat,
+    linear-gradient(100deg, rgba(86, 28, 196, .9) 0%, rgba(66, 48, 196, .78) 42%, rgba(38, 62, 176, .5) 100%),
+    url("/hero.jpg") 0% 24% / 114% auto no-repeat; }
+}
 
 /* ---------- tablets ---------- */
 @media (max-width: 900px) {
