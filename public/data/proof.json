@@ -7,17 +7,17 @@
    "clusters": 566,
    "meanPct": 0.22,
    "medianPct": 0.07,
-   "hitRatePct": 50.8,
-   "tNaive": 2.92,
-   "tClustered": 0.7
+   "hitRatePct": 50.9,
+   "tNaive": 2.94,
+   "tClustered": 0.71
   },
   "20d": {
-   "n": 5405,
+   "n": 5406,
    "clusters": 550,
    "meanPct": 0.16,
    "medianPct": -0.03,
    "hitRatePct": 49.8,
-   "tNaive": 1.1,
+   "tNaive": 1.11,
    "tClustered": 2.09
   }
  },
@@ -45,20 +45,20 @@
     "n": 3736,
     "clusters": 504,
     "meanPct": 0.23,
-    "medianPct": 0.08,
+    "medianPct": 0.09,
     "hitRatePct": 51.0,
-    "tNaive": 2.58,
-    "tClustered": 0.27
+    "tNaive": 2.6,
+    "tClustered": 0.28
    }
   },
   "20d": {
    "OPEN": {
-    "n": 3630,
+    "n": 3631,
     "clusters": 490,
     "meanPct": 0.19,
-    "medianPct": 0.02,
+    "medianPct": 0.03,
     "hitRatePct": 50.4,
-    "tNaive": 1.04,
+    "tNaive": 1.05,
     "tClustered": 0.84
    },
    "PRICED_IN": {
