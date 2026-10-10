@@ -7,7 +7,7 @@
    "clusters": 566,
    "meanPct": 0.22,
    "medianPct": 0.07,
-   "hitRatePct": 50.9,
+   "hitRatePct": 50.8,
    "tNaive": 2.94,
    "tClustered": 0.71
   },
