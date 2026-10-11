@@ -1,10 +1,10 @@
 {
- "generatedAt": "2026-10-10T21:45:25+00:00",
+ "generatedAt": "2026-10-11T05:48:13+00:00",
  "priceAsOf": "2026-10-09",
  "feedDays": 90,
- "count": 1357,
+ "count": 1353,
  "verdicts": {
-  "OPEN": 908,
+  "OPEN": 904,
   "REVERSED": 215,
   "PRICED_IN": 207,
   "UNCLEAR": 27
@@ -15,7 +15,7 @@
    "paperReports": 59,
    "tradesSeen": 4783,
    "tradesKept": 3151,
-   "updated": "2026-10-10T05:48:16+00:00"
+   "updated": "2026-10-11T05:42:18+00:00"
   },
   "house": {
    "filings": 418,
