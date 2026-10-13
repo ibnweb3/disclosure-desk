@@ -17,7 +17,7 @@
    "meanPct": 0.15,
    "medianPct": -0.03,
    "hitRatePct": 49.8,
-   "tNaive": 1.05,
+   "tNaive": 1.06,
    "tClustered": 2.04
   }
  },
@@ -39,7 +39,7 @@
     "medianPct": 0.06,
     "hitRatePct": 50.7,
     "tNaive": 2.83,
-    "tClustered": 0.2
+    "tClustered": 0.21
    },
    "OPEN": {
     "n": 3741,

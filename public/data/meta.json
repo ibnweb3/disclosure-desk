@@ -1,12 +1,12 @@
 {
- "generatedAt": "2026-10-13T14:12:45+00:00",
+ "generatedAt": "2026-10-13T22:46:51+00:00",
  "priceAsOf": "2026-10-13",
  "feedDays": 90,
- "count": 1344,
+ "count": 1408,
  "verdicts": {
-  "OPEN": 910,
-  "REVERSED": 211,
-  "PRICED_IN": 196,
+  "OPEN": 961,
+  "REVERSED": 221,
+  "PRICED_IN": 199,
   "UNCLEAR": 27
  },
  "coverage": {
@@ -18,12 +18,12 @@
    "updated": "2026-10-13T06:44:58+00:00"
   },
   "house": {
-   "filings": 418,
+   "filings": 421,
    "scanned": 52,
    "missing": 0,
-   "markers": 3467,
-   "parsed": 3457,
-   "kept": 2896
+   "markers": 3537,
+   "parsed": 3527,
+   "kept": 2960
   },
   "houseParsePct": 99.7
  },
