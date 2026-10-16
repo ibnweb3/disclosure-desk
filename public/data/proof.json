@@ -12,13 +12,13 @@
    "tClustered": 0.75
   },
   "20d": {
-   "n": 5431,
-   "clusters": 556,
-   "meanPct": 0.15,
+   "n": 5444,
+   "clusters": 558,
+   "meanPct": 0.16,
    "medianPct": -0.03,
-   "hitRatePct": 49.8,
-   "tNaive": 1.06,
-   "tClustered": 2.03
+   "hitRatePct": 49.9,
+   "tNaive": 1.12,
+   "tClustered": 2.07
   }
  },
  "byVerdict": {
@@ -53,13 +53,13 @@
   },
   "20d": {
    "OPEN": {
-    "n": 3649,
-    "clusters": 495,
-    "meanPct": 0.17,
+    "n": 3659,
+    "clusters": 497,
+    "meanPct": 0.19,
     "medianPct": 0.02,
-    "hitRatePct": 50.4,
-    "tNaive": 0.97,
-    "tClustered": 0.72
+    "hitRatePct": 50.5,
+    "tNaive": 1.05,
+    "tClustered": 0.8
    },
    "PRICED_IN": {
     "n": 926,
@@ -71,13 +71,13 @@
     "tClustered": 1.41
    },
    "REVERSED": {
-    "n": 856,
-    "clusters": 246,
-    "meanPct": -0.22,
-    "medianPct": -0.48,
+    "n": 859,
+    "clusters": 248,
+    "meanPct": -0.23,
+    "medianPct": -0.47,
     "hitRatePct": 47.1,
-    "tNaive": -0.59,
-    "tClustered": 0.62
+    "tNaive": -0.6,
+    "tClustered": 0.59
    }
   }
  },
@@ -87,8 +87,8 @@
    "tWelch": 0.58
   },
   "20d": {
-   "diffPct": -0.49,
-   "tWelch": -0.79
+   "diffPct": -0.46,
+   "tWelch": -0.75
   }
  },
  "caveats": [
