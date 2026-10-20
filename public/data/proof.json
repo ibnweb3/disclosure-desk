@@ -3,29 +3,29 @@
  "method": "Validation numbers for the 'Proof' page. Two questions, answered on all history we hold\n(Senate 2023-26 via mirror + House 2026), and reported whatever the answer is:\n\n  1. Does naively following a disclosure make money?          (the tracker-app premise)\n  2. Does the desk's verdict (OPEN vs PRICED_IN) separate outcomes?   (the desk's premise)\n\nMethod: assess each trade as a follower would see it - on the first close AFTER the filing date, so there\nis no look-ahead - then measure direction-adjusted excess return over SPY for the next 5 / 20 trading days.\nObservations are clustered by filing (one filing = one observation) because a member's trades inside one\nfiling are not independent; the naive per-trade t-stat is shown next to it to make the inflation visible.",
  "naiveFollow": {
   "5d": {
-   "n": 5604,
-   "clusters": 570,
-   "meanPct": 0.21,
+   "n": 5669,
+   "clusters": 573,
+   "meanPct": 0.22,
    "medianPct": 0.07,
-   "hitRatePct": 50.7,
-   "tNaive": 2.88,
-   "tClustered": 0.76
+   "hitRatePct": 50.8,
+   "tNaive": 2.93,
+   "tClustered": 0.73
   },
   "20d": {
-   "n": 5444,
-   "clusters": 559,
-   "meanPct": 0.17,
+   "n": 5447,
+   "clusters": 560,
+   "meanPct": 0.16,
    "medianPct": -0.03,
    "hitRatePct": 49.9,
-   "tNaive": 1.16,
-   "tClustered": 2.05
+   "tNaive": 1.11,
+   "tClustered": 2.04
   }
  },
  "byVerdict": {
   "5d": {
    "PRICED_IN": {
-    "n": 951,
-    "clusters": 262,
+    "n": 953,
+    "clusters": 263,
     "meanPct": -0.15,
     "medianPct": 0.06,
     "hitRatePct": 50.4,
@@ -33,32 +33,41 @@
     "tClustered": -0.5
    },
    "REVERSED": {
-    "n": 873,
-    "clusters": 256,
+    "n": 884,
+    "clusters": 258,
     "meanPct": 0.57,
-    "medianPct": 0.07,
+    "medianPct": 0.06,
     "hitRatePct": 50.7,
-    "tNaive": 2.87,
-    "tClustered": 0.25
+    "tNaive": 2.9,
+    "tClustered": 0.21
    },
    "OPEN": {
-    "n": 3780,
-    "clusters": 508,
-    "meanPct": 0.22,
-    "medianPct": 0.07,
-    "hitRatePct": 50.8,
-    "tNaive": 2.54,
-    "tClustered": 0.31
+    "n": 3832,
+    "clusters": 511,
+    "meanPct": 0.23,
+    "medianPct": 0.08,
+    "hitRatePct": 50.9,
+    "tNaive": 2.57,
+    "tClustered": 0.29
    }
   },
   "20d": {
+   "REVERSED": {
+    "n": 860,
+    "clusters": 249,
+    "meanPct": -0.23,
+    "medianPct": -0.48,
+    "hitRatePct": 47.1,
+    "tNaive": -0.61,
+    "tClustered": 0.58
+   },
    "OPEN": {
-    "n": 3660,
+    "n": 3661,
     "clusters": 498,
     "meanPct": 0.19,
     "medianPct": 0.02,
     "hitRatePct": 50.5,
-    "tNaive": 1.07,
+    "tNaive": 1.04,
     "tClustered": 0.78
    },
    "PRICED_IN": {
@@ -69,22 +78,13 @@
     "hitRatePct": 50.1,
     "tNaive": 1.27,
     "tClustered": 1.41
-   },
-   "REVERSED": {
-    "n": 858,
-    "clusters": 248,
-    "meanPct": -0.21,
-    "medianPct": -0.46,
-    "hitRatePct": 47.2,
-    "tNaive": -0.55,
-    "tClustered": 0.6
    }
   }
  },
  "openMinusPricedIn": {
   "5d": {
    "diffPct": 0.2,
-   "tWelch": 0.59
+   "tWelch": 0.58
   },
   "20d": {
    "diffPct": -0.47,
