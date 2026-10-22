@@ -1,12 +1,12 @@
 {
- "generatedAt": "2026-10-22T17:11:57+00:00",
- "priceAsOf": "2026-10-21",
+ "generatedAt": "2026-10-22T21:37:31+00:00",
+ "priceAsOf": "2026-10-22",
  "feedDays": 90,
  "count": 1011,
  "verdicts": {
-  "OPEN": 765,
-  "PRICED_IN": 120,
-  "REVERSED": 104,
+  "OPEN": 729,
+  "PRICED_IN": 134,
+  "REVERSED": 126,
   "UNCLEAR": 22
  },
  "coverage": {
@@ -15,7 +15,7 @@
    "paperReports": 59,
    "tradesSeen": 4800,
    "tradesKept": 3168,
-   "updated": "2026-10-21T23:16:31+00:00"
+   "updated": "2026-10-22T21:32:47+00:00"
   },
   "house": {
    "filings": 435,
