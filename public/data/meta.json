@@ -1,13 +1,13 @@
 {
- "generatedAt": "2026-10-23T11:40:14+00:00",
+ "generatedAt": "2026-10-23T17:07:37+00:00",
  "priceAsOf": "2026-10-22",
  "feedDays": 90,
- "count": 1010,
+ "count": 1012,
  "verdicts": {
+  "REVERSED": 127,
+  "OPEN": 728,
   "UNCLEAR": 23,
-  "OPEN": 727,
-  "PRICED_IN": 134,
-  "REVERSED": 126
+  "PRICED_IN": 134
  },
  "coverage": {
   "senate": {
@@ -18,12 +18,12 @@
    "updated": "2026-10-23T07:27:43+00:00"
   },
   "house": {
-   "filings": 435,
+   "filings": 437,
    "scanned": 53,
    "missing": 0,
-   "markers": 3591,
-   "parsed": 3581,
-   "kept": 2997
+   "markers": 3597,
+   "parsed": 3587,
+   "kept": 3001
   },
   "houseParsePct": 99.7
  },
