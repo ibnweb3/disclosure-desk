@@ -9,7 +9,7 @@
    "medianPct": 0.06,
    "hitRatePct": 50.7,
    "tNaive": 2.75,
-   "tClustered": 0.68
+   "tClustered": 0.67
   },
   "20d": {
    "n": 5451,
@@ -38,15 +38,15 @@
     "meanPct": 0.55,
     "medianPct": 0.06,
     "hitRatePct": 50.4,
-    "tNaive": 2.82,
-    "tClustered": 0.07
+    "tNaive": 2.81,
+    "tClustered": 0.06
    },
    "OPEN": {
     "n": 3854,
     "clusters": 516,
     "meanPct": 0.21,
     "medianPct": 0.07,
-    "hitRatePct": 50.9,
+    "hitRatePct": 50.8,
     "tNaive": 2.42,
     "tClustered": 0.27
    }
