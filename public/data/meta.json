@@ -1,13 +1,13 @@
 {
- "generatedAt": "2026-10-26T13:03:03+00:00",
- "priceAsOf": "2026-10-23",
+ "generatedAt": "2026-10-26T22:42:09+00:00",
+ "priceAsOf": "2026-10-26",
  "feedDays": 90,
  "count": 1003,
  "verdicts": {
-  "OPEN": 733,
+  "OPEN": 735,
   "UNCLEAR": 23,
-  "PRICED_IN": 126,
-  "REVERSED": 121
+  "PRICED_IN": 127,
+  "REVERSED": 118
  },
  "coverage": {
   "senate": {
