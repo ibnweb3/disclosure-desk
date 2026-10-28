@@ -5,20 +5,20 @@
   "5d": {
    "n": 5707,
    "clusters": 581,
-   "meanPct": 0.19,
+   "meanPct": 0.2,
    "medianPct": 0.06,
    "hitRatePct": 50.7,
-   "tNaive": 2.56,
-   "tClustered": 0.61
+   "tNaive": 2.73,
+   "tClustered": 0.65
   },
   "20d": {
    "n": 5537,
    "clusters": 563,
-   "meanPct": 0.06,
+   "meanPct": 0.07,
    "medianPct": -0.1,
    "hitRatePct": 49.3,
-   "tNaive": 0.41,
-   "tClustered": 1.95
+   "tNaive": 0.5,
+   "tClustered": 1.97
   }
  },
  "byVerdict": {
@@ -44,11 +44,11 @@
    "OPEN": {
     "n": 3862,
     "clusters": 519,
-    "meanPct": 0.2,
-    "medianPct": 0.07,
+    "meanPct": 0.22,
+    "medianPct": 0.08,
     "hitRatePct": 50.9,
-    "tNaive": 2.26,
-    "tClustered": 0.24
+    "tNaive": 2.47,
+    "tClustered": 0.28
    }
   },
   "20d": {
@@ -64,11 +64,11 @@
    "OPEN": {
     "n": 3729,
     "clusters": 501,
-    "meanPct": 0.07,
+    "meanPct": 0.09,
     "medianPct": -0.01,
     "hitRatePct": 49.9,
-    "tNaive": 0.39,
-    "tClustered": 0.69
+    "tNaive": 0.5,
+    "tClustered": 0.71
    },
    "PRICED_IN": {
     "n": 944,
@@ -83,12 +83,12 @@
  },
  "openMinusPricedIn": {
   "5d": {
-   "diffPct": 0.26,
-   "tWelch": 0.77
+   "diffPct": 0.27,
+   "tWelch": 0.79
   },
   "20d": {
-   "diffPct": -0.46,
-   "tWelch": -0.74
+   "diffPct": -0.45,
+   "tWelch": -0.73
   }
  },
  "caveats": [
