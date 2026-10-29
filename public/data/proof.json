@@ -3,13 +3,13 @@
  "method": "Validation numbers for the 'Proof' page. Two questions, answered on all history we hold\n(Senate 2023-26 via mirror + House 2026), and reported whatever the answer is:\n\n  1. Does naively following a disclosure make money?          (the tracker-app premise)\n  2. Does the desk's verdict (OPEN vs PRICED_IN) separate outcomes?   (the desk's premise)\n\nMethod: assess each trade as a follower would see it - on the first close AFTER the filing date, so there\nis no look-ahead - then measure direction-adjusted excess return over SPY for the next 5 / 20 trading days.\nObservations are clustered by filing (one filing = one observation) because a member's trades inside one\nfiling are not independent; the naive per-trade t-stat is shown next to it to make the inflation visible.",
  "naiveFollow": {
   "5d": {
-   "n": 5707,
-   "clusters": 581,
+   "n": 5724,
+   "clusters": 583,
    "meanPct": 0.2,
-   "medianPct": 0.06,
-   "hitRatePct": 50.7,
-   "tNaive": 2.73,
-   "tClustered": 0.65
+   "medianPct": 0.05,
+   "hitRatePct": 50.6,
+   "tNaive": 2.68,
+   "tClustered": 0.62
   },
   "20d": {
    "n": 5537,
@@ -23,14 +23,23 @@
  },
  "byVerdict": {
   "5d": {
+   "OPEN": {
+    "n": 3877,
+    "clusters": 521,
+    "meanPct": 0.21,
+    "medianPct": 0.06,
+    "hitRatePct": 50.7,
+    "tNaive": 2.41,
+    "tClustered": 0.25
+   },
    "PRICED_IN": {
-    "n": 955,
-    "clusters": 266,
+    "n": 957,
+    "clusters": 267,
     "meanPct": -0.19,
-    "medianPct": 0.04,
-    "hitRatePct": 50.2,
-    "tNaive": -1.0,
-    "tClustered": -0.75
+    "medianPct": 0.02,
+    "hitRatePct": 50.1,
+    "tNaive": -1.01,
+    "tClustered": -0.76
    },
    "REVERSED": {
     "n": 890,
@@ -40,15 +49,6 @@
     "hitRatePct": 50.3,
     "tNaive": 2.81,
     "tClustered": 0.05
-   },
-   "OPEN": {
-    "n": 3862,
-    "clusters": 519,
-    "meanPct": 0.22,
-    "medianPct": 0.08,
-    "hitRatePct": 50.9,
-    "tNaive": 2.47,
-    "tClustered": 0.28
    }
   },
   "20d": {
@@ -84,7 +84,7 @@
  "openMinusPricedIn": {
   "5d": {
    "diffPct": 0.27,
-   "tWelch": 0.79
+   "tWelch": 0.78
   },
   "20d": {
    "diffPct": -0.45,
