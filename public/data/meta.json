@@ -1,12 +1,12 @@
 {
- "generatedAt": "2026-11-06T06:44:04+00:00",
- "priceAsOf": "2026-11-05",
+ "generatedAt": "2026-11-06T19:26:06+00:00",
+ "priceAsOf": "2026-11-06",
  "feedDays": 90,
  "count": 730,
  "verdicts": {
-  "PRICED_IN": 88,
-  "REVERSED": 150,
-  "OPEN": 484,
+  "PRICED_IN": 75,
+  "REVERSED": 137,
+  "OPEN": 510,
   "INVALID": 1,
   "UNCLEAR": 7
  },

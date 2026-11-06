@@ -3,13 +3,13 @@
  "method": "Validation numbers for the 'Proof' page. Two questions, answered on all history we hold\n(Senate 2023-26 via mirror + House 2026), and reported whatever the answer is:\n\n  1. Does naively following a disclosure make money?          (the tracker-app premise)\n  2. Does the desk's verdict (OPEN vs PRICED_IN) separate outcomes?   (the desk's premise)\n\nMethod: assess each trade as a follower would see it - on the first close AFTER the filing date, so there\nis no look-ahead - then measure direction-adjusted excess return over SPY for the next 5 / 20 trading days.\nObservations are clustered by filing (one filing = one observation) because a member's trades inside one\nfiling are not independent; the naive per-trade t-stat is shown next to it to make the inflation visible.",
  "naiveFollow": {
   "5d": {
-   "n": 5746,
-   "clusters": 586,
-   "meanPct": 0.17,
-   "medianPct": 0.03,
-   "hitRatePct": 50.4,
-   "tNaive": 2.34,
-   "tClustered": 0.65
+   "n": 5754,
+   "clusters": 587,
+   "meanPct": 0.18,
+   "medianPct": 0.04,
+   "hitRatePct": 50.5,
+   "tNaive": 2.38,
+   "tClustered": 0.68
   },
   "20d": {
    "n": 5587,
@@ -24,13 +24,13 @@
  "byVerdict": {
   "5d": {
    "OPEN": {
-    "n": 3891,
-    "clusters": 523,
-    "meanPct": 0.18,
-    "medianPct": 0.03,
-    "hitRatePct": 50.5,
-    "tNaive": 2.1,
-    "tClustered": 0.1
+    "n": 3898,
+    "clusters": 524,
+    "meanPct": 0.19,
+    "medianPct": 0.04,
+    "hitRatePct": 50.6,
+    "tNaive": 2.17,
+    "tClustered": 0.13
    },
    "PRICED_IN": {
     "n": 957,
@@ -42,13 +42,13 @@
     "tClustered": -0.95
    },
    "REVERSED": {
-    "n": 898,
-    "clusters": 264,
+    "n": 899,
+    "clusters": 265,
     "meanPct": 0.54,
     "medianPct": 0.03,
     "hitRatePct": 50.1,
-    "tNaive": 2.72,
-    "tClustered": 0.18
+    "tNaive": 2.69,
+    "tClustered": 0.11
    }
   },
   "20d": {
@@ -83,8 +83,8 @@
  },
  "openMinusPricedIn": {
   "5d": {
-   "diffPct": 0.3,
-   "tWelch": 0.86
+   "diffPct": 0.31,
+   "tWelch": 0.88
   },
   "20d": {
    "diffPct": -0.32,
