@@ -1,30 +1,30 @@
 {
- "generatedAt": "2026-11-09T06:28:00+00:00",
- "priceAsOf": "2026-11-06",
+ "generatedAt": "2026-11-09T22:22:47+00:00",
+ "priceAsOf": "2026-11-09",
  "feedDays": 90,
- "count": 710,
+ "count": 721,
  "verdicts": {
-  "REVERSED": 134,
-  "PRICED_IN": 74,
-  "OPEN": 494,
-  "INVALID": 1,
-  "UNCLEAR": 7
+  "OPEN": 507,
+  "UNCLEAR": 8,
+  "REVERSED": 124,
+  "PRICED_IN": 81,
+  "INVALID": 1
  },
  "coverage": {
   "senate": {
-   "reports": 549,
+   "reports": 553,
    "paperReports": 59,
-   "tradesSeen": 4801,
-   "tradesKept": 3169,
-   "updated": "2026-10-23T07:27:43+00:00"
+   "tradesSeen": 4858,
+   "tradesKept": 3187,
+   "updated": "2026-11-09T20:42:09+00:00"
   },
   "house": {
-   "filings": 457,
-   "scanned": 56,
+   "filings": 460,
+   "scanned": 57,
    "missing": 0,
-   "markers": 3671,
-   "parsed": 3661,
-   "kept": 3065
+   "markers": 3673,
+   "parsed": 3663,
+   "kept": 3067
   },
   "houseParsePct": 99.7
  },
