@@ -1,12 +1,12 @@
 {
- "generatedAt": "2026-11-16T06:29:16+00:00",
- "priceAsOf": "2026-11-13",
+ "generatedAt": "2026-11-16T22:02:00+00:00",
+ "priceAsOf": "2026-11-16",
  "feedDays": 90,
  "count": 740,
  "verdicts": {
-  "PRICED_IN": 88,
-  "OPEN": 518,
-  "REVERSED": 122,
+  "PRICED_IN": 97,
+  "OPEN": 493,
+  "REVERSED": 138,
   "UNCLEAR": 11,
   "INVALID": 1
  },
@@ -16,7 +16,7 @@
    "paperReports": 59,
    "tradesSeen": 4858,
    "tradesKept": 3187,
-   "updated": "2026-11-14T23:53:25+00:00"
+   "updated": "2026-11-16T20:25:23+00:00"
   },
   "house": {
    "filings": 468,
