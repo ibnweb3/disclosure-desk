@@ -3,12 +3,12 @@
  "method": "Validation numbers for the 'Proof' page. Two questions, answered on all history we hold\n(Senate 2023-26 via mirror + House 2026), and reported whatever the answer is:\n\n  1. Does naively following a disclosure make money?          (the tracker-app premise)\n  2. Does the desk's verdict (OPEN vs PRICED_IN) separate outcomes?   (the desk's premise)\n\nMethod: assess each trade as a follower would see it - on the first close AFTER the filing date, so there\nis no look-ahead - then measure direction-adjusted excess return over SPY for the next 5 / 20 trading days.\nObservations are clustered by filing (one filing = one observation) because a member's trades inside one\nfiling are not independent; the naive per-trade t-stat is shown next to it to make the inflation visible.",
  "naiveFollow": {
   "5d": {
-   "n": 5786,
-   "clusters": 598,
+   "n": 5838,
+   "clusters": 599,
    "meanPct": 0.17,
-   "medianPct": 0.04,
-   "hitRatePct": 50.5,
-   "tNaive": 2.31,
+   "medianPct": 0.03,
+   "hitRatePct": 50.4,
+   "tNaive": 2.27,
    "tClustered": 0.66
   },
   "20d": {
@@ -24,31 +24,31 @@
  "byVerdict": {
   "5d": {
    "REVERSED": {
-    "n": 907,
-    "clusters": 270,
-    "meanPct": 0.5,
-    "medianPct": -0.0,
-    "hitRatePct": 49.9,
-    "tNaive": 2.53,
-    "tClustered": -0.07
+    "n": 918,
+    "clusters": 271,
+    "meanPct": 0.46,
+    "medianPct": -0.05,
+    "hitRatePct": 49.5,
+    "tNaive": 2.3,
+    "tClustered": -0.12
    },
    "OPEN": {
-    "n": 3916,
-    "clusters": 532,
+    "n": 3941,
+    "clusters": 533,
     "meanPct": 0.18,
     "medianPct": 0.04,
-    "hitRatePct": 50.7,
+    "hitRatePct": 50.6,
     "tNaive": 2.07,
-    "tClustered": -0.04
+    "tClustered": -0.03
    },
    "PRICED_IN": {
-    "n": 963,
-    "clusters": 271,
-    "meanPct": -0.18,
-    "medianPct": 0.04,
-    "hitRatePct": 50.2,
-    "tNaive": -0.99,
-    "tClustered": -0.67
+    "n": 979,
+    "clusters": 272,
+    "meanPct": -0.16,
+    "medianPct": 0.06,
+    "hitRatePct": 50.5,
+    "tNaive": -0.87,
+    "tClustered": -0.66
    }
   },
   "20d": {
@@ -83,8 +83,8 @@
  },
  "openMinusPricedIn": {
   "5d": {
-   "diffPct": 0.2,
-   "tWelch": 0.56
+   "diffPct": 0.19,
+   "tWelch": 0.54
   },
   "20d": {
    "diffPct": -0.27,
