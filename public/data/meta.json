@@ -1,22 +1,22 @@
 {
- "generatedAt": "2026-11-20T20:19:10+00:00",
+ "generatedAt": "2026-11-21T07:07:42+00:00",
  "priceAsOf": "2026-11-20",
  "feedDays": 90,
- "count": 739,
+ "count": 740,
  "verdicts": {
-  "REVERSED": 175,
-  "OPEN": 452,
-  "UNCLEAR": 12,
   "PRICED_IN": 99,
+  "REVERSED": 173,
+  "OPEN": 455,
+  "UNCLEAR": 12,
   "INVALID": 1
  },
  "coverage": {
   "senate": {
-   "reports": 555,
+   "reports": 557,
    "paperReports": 59,
-   "tradesSeen": 4862,
-   "tradesKept": 3191,
-   "updated": "2026-11-20T01:45:49+00:00"
+   "tradesSeen": 4886,
+   "tradesKept": 3192,
+   "updated": "2026-11-21T01:28:59+00:00"
   },
   "house": {
    "filings": 477,
