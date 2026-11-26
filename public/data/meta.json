@@ -1,32 +1,32 @@
 {
- "generatedAt": "2026-11-25T21:42:56+00:00",
+ "generatedAt": "2026-11-26T08:17:39+00:00",
  "priceAsOf": "2026-11-25",
  "feedDays": 90,
- "count": 874,
+ "count": 893,
  "verdicts": {
-  "PRICED_IN": 119,
-  "OPEN": 542,
-  "REVERSED": 200,
+  "REVERSED": 210,
+  "OPEN": 549,
+  "PRICED_IN": 121,
   "UNCLEAR": 12,
   "INVALID": 1
  },
  "coverage": {
   "senate": {
-   "reports": 558,
+   "reports": 559,
    "paperReports": 59,
-   "tradesSeen": 4919,
-   "tradesKept": 3193,
-   "updated": "2026-11-25T21:38:18+00:00"
+   "tradesSeen": 4922,
+   "tradesKept": 3196,
+   "updated": "2026-11-26T04:08:06+00:00"
   },
   "house": {
-   "filings": 481,
+   "filings": 483,
    "scanned": 58,
    "missing": 0,
-   "markers": 3979,
-   "parsed": 3969,
-   "kept": 3346
+   "markers": 4003,
+   "parsed": 3993,
+   "kept": 3367
   },
-  "houseParsePct": 99.7
+  "houseParsePct": 99.8
  },
  "sources": [
   "disclosures-clerk.house.gov (official, PDF)",
